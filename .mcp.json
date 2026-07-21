@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mymore-mcp": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "~/.mymore:/root/.mymore",
+        "mymore-mcp"
+      ],
+      "env": {}
+    }
+  }
+}

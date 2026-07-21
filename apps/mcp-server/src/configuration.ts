@@ -37,6 +37,12 @@ export class MainConfiguration {
     // Run startup scan
     const scanResult = cascade.scanAndSync();
     console.log(`[mymore] startup scan: ${scanResult.synced} synced, ${scanResult.skipped} skipped`);
+
+    // Load frozen snapshot for Prefix Cache optimization
+    const frozen = storage.getFrozenSnapshot('default');
+    if (frozen) {
+      console.log(`[mymore] frozen snapshot loaded (${frozen.length} chars)`);
+    }
   }
 
   async onStop() {

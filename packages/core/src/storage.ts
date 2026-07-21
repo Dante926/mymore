@@ -126,6 +126,14 @@ export class MemoryStorage {
     return this.rowToMemoryRow(row);
   }
 
+  getByMdPath(mdPath: string): MemoryRow | null {
+    const row = this.db.prepare(
+      'SELECT * FROM memory_meta WHERE md_path = ?',
+    ).get(mdPath) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return this.rowToMemoryRow(row);
+  }
+
   updateMdPath(id: string, mdPath: string): void {
     this.db.prepare('UPDATE memory_meta SET md_path = ? WHERE id = ?').run(mdPath, id);
   }

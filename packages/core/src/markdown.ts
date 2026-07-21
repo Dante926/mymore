@@ -1,14 +1,13 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
-import { join, relative, dirname, parse } from 'path';
+import { join, relative, dirname } from 'path';
 import matter from 'gray-matter';
 import { createHash } from 'crypto';
 import type { MemoryEntry, Track, Category } from './models.js';
 
 export function mdPathForEntry(rootDir: string, entry: MemoryEntry): string {
   const trackDir = entry.track === 'agent' ? 'agents' : 'users';
-  const date = entry.created_at.slice(0, 10);
   const dir = join(rootDir, trackDir, entry.owner_id, 'episodes');
-  return join(dir, `episode-${date}.md`);
+  return join(dir, `${entry.id}.md`);
 }
 
 export class MarkdownHandler {
@@ -30,16 +29,12 @@ export class MarkdownHandler {
     if (entry.session_id) frontmatter.session_id = entry.session_id;
     if (entry.valid_until) frontmatter.valid_until = entry.valid_until;
     if (entry.superseded_by) frontmatter.superseded_by = entry.superseded_by;
+    if (entry.parent_id) frontmatter.parent_id = entry.parent_id;
+    if (entry.last_accessed_at) frontmatter.last_accessed_at = entry.last_accessed_at;
 
-    // Append to existing file or create new
-    const existing = existsSync(filePath) ? readFileSync(filePath, 'utf-8') : '';
-    const newEntry = matter.stringify(`\n${entry.content}`, frontmatter);
-
-    if (existing) {
-      writeFileSync(filePath, existing.trimEnd() + `\n\n---\n\n${newEntry}`);
-    } else {
-      writeFileSync(filePath, newEntry);
-    }
+    // One entry per file — always write fresh
+    const content = matter.stringify(`\n${entry.content}`, frontmatter);
+    writeFileSync(filePath, content);
 
     return relative(this.rootDir, filePath);
   }

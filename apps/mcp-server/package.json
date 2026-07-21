@@ -1,0 +1,25 @@
+{
+  "name": "mymore-mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup --dts --format esm",
+    "dev": "tsx watch src/bootstrap.ts",
+    "start": "node dist/bootstrap.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@midwayjs/core": "^4.0.0",
+    "@midwayjs/mcp": "^4.0.0",
+    "@mymore/core": "workspace:*",
+    "better-sqlite3": "^11.8.0",
+    "gray-matter": "^4.0.3",
+    "uuid": "^11.1.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/uuid": "^10.0.0"
+  }
+}

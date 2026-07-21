@@ -23,21 +23,25 @@ export class MemoryStorage {
     const insertFts = this.db.prepare(
       'INSERT INTO memory_fts (content) VALUES (?)',
     );
-    const result = insertFts.run(entry.content);
-    const ftsRowid = result.lastInsertRowid as number;
-
     const insertMeta = this.db.prepare(`
       INSERT INTO memory_meta (id, fts_rowid, track, owner_id, category, md_path,
         frozen, created_at, valid_until, superseded_by, session_id, parent_id, content_sha256)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertMeta.run(
-      entry.id, ftsRowid, entry.track, entry.owner_id, entry.category, '', // md_path set later
-      entry.frozen ? 1 : 0, entry.created_at,
-      entry.valid_until ?? null, entry.superseded_by ?? null,
-      entry.session_id ?? null, entry.parent_id ?? null, sha,
-    );
 
+    const addTx = this.db.transaction(() => {
+      const result = insertFts.run(entry.content);
+      const ftsRowid = result.lastInsertRowid as number;
+
+      insertMeta.run(
+        entry.id, ftsRowid, entry.track, entry.owner_id, entry.category, '', // md_path set later
+        entry.frozen ? 1 : 0, entry.created_at,
+        entry.valid_until ?? null, entry.superseded_by ?? null,
+        entry.session_id ?? null, entry.parent_id ?? null, sha,
+      );
+    });
+
+    addTx();
     return this.getById(entry.id)!;
   }
 
@@ -129,8 +133,9 @@ export class MemoryStorage {
   updateRow(id: string, changes: Partial<MemoryRow>): void {
     const sets: string[] = [];
     const params: unknown[] = [];
+    const skip = new Set(['id', 'fts_rowid', 'content_sha256', 'created_at']);
     for (const [key, value] of Object.entries(changes)) {
-      if (key === 'id') continue;
+      if (skip.has(key)) continue;
       sets.push(`${key} = ?`);
       params.push(value ?? null);
     }

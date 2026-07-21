@@ -1,6 +1,3 @@
-import { z } from 'zod';
-// NOTE: MidwayJS ships zod, but @mymore/core should avoid the dep.
-// Use pure TypeScript types instead.
 
 export type Track = 'user' | 'agent';
 export type Category = 'persistent' | 'session' | 'archived';

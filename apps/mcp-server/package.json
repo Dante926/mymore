@@ -4,14 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup --dts --format esm",
+    "build": "tsup --format esm",
     "dev": "tsx watch src/bootstrap.ts",
     "start": "node dist/bootstrap.js",
     "test": "vitest run"
   },
   "dependencies": {
-    "@midwayjs/core": "^4.0.0",
-    "@midwayjs/mcp": "^4.0.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@mymore/core": "workspace:*",
     "better-sqlite3": "^11.8.0",
     "gray-matter": "^4.0.3",

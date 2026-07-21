@@ -10,7 +10,8 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY package.json ./
 COPY apps/mcp-server/package.json ./apps/mcp-server/
 COPY packages/core/package.json ./packages/core/
-RUN pnpm install --frozen-lockfile
+COPY packages/core/pnpm-lock.yaml ./packages/core/
+RUN pnpm install
 
 # Source + build
 COPY . .
@@ -19,4 +20,4 @@ RUN pnpm build
 # Default memory root
 ENV MYMORE_ROOT=/root/.mymore
 
-CMD ["node", "apps/mcp-server/dist/configuration.js"]
+CMD ["node", "apps/mcp-server/dist/bootstrap.js"]

@@ -2,3 +2,4 @@
 
 export * from './models.js';
 export * from './classifier.js';
+export * from './markdown.js';

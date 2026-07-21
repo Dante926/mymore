@@ -64,6 +64,18 @@ mymore 是一个本地优先的 MCP（Model Context Protocol）记忆服务器�
 ## 快速开始
 
 ```bash
+# 构建 Docker 镜像
+docker build -t mymore-mcp -f apps/mcp-server/Dockerfile .
+
+# 运行 MCP Server（stdio 模式）
+docker run -i --rm -v ~/.mymore:/root/.mymore mymore-mcp
+```
+
+首次运行会自动创建 `~/.mymore/` 目录并初始化数据库。
+
+### 开发模式
+
+```bash
 # 安装依赖
 pnpm install
 
@@ -72,9 +84,6 @@ pnpm build
 
 # 运行测试（共 38 个）
 pnpm test
-
-# 启动 MCP Server
-node apps/mcp-server/dist/configuration.js
 ```
 
 ### Claude Desktop 配置
@@ -83,19 +92,15 @@ node apps/mcp-server/dist/configuration.js
 {
   "mcpServers": {
     "mymore": {
-      "command": "node",
-      "args": ["path/to/mymore/apps/mcp-server/dist/configuration.js"]
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "~/.mymore:/root/.mymore",
+        "mymore-mcp"
+      ]
     }
   }
 }
-```
-
-### Docker
-
-```bash
-docker build -t mymore-mcp -f apps/mcp-server/Dockerfile .
-docker run -i --rm -v ~/.mymore:/root/.mymore mymore-mcp
-```
 
 ---
 
@@ -173,4 +178,4 @@ docs: update architecture design
 
 ## License
 
-Apache-2.0
+MIT

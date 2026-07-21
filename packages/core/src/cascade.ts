@@ -9,16 +9,16 @@ export class CascadeSync {
   ) {}
 
   syncOne(entry: MemoryEntry): { mdPath: string; changed: boolean } {
-    // 1. Write markdown first (authoritative source)
-    const mdPath = this.md.writeEntry(entry);
-
-    // 2. Check existing FTS5 row by entry ID
-    const existing = this.storage.getById(entry.id);
+    // 1. Compute SHA first (before writing to md)
     const sha = computeSha256(entry.content, entry.category, entry.frozen);
+    const existing = this.storage.getById(entry.id);
 
-    if (existing && existing.content_sha256 === sha && existing.md_path === mdPath) {
-      return { mdPath, changed: false }; // No change
+    if (existing && existing.content_sha256 === sha) {
+      return { mdPath: existing.md_path, changed: false };
     }
+
+    // 2. Write markdown (only if changed)
+    const mdPath = this.md.writeEntry(entry);
 
     // 3. Upsert FTS5
     if (existing) {
@@ -35,6 +35,9 @@ export class CascadeSync {
       this.storage.updateMdPath(entry.id, mdPath);
     }
 
+    // 4. Auto-cleanup old persistent entries
+    this.autoCleanup(entry);
+
     return { mdPath, changed: true };
   }
 
@@ -44,18 +47,19 @@ export class CascadeSync {
     let skipped = 0;
 
     for (const file of files) {
-      const stored = this.storage.getBySha256(file.sha256);
+      // Re-parse md file and compute proper SHA(content::category::frozen)
+      const entry = this.md.readEntry(file.path);
+      if (!entry) continue;
+
+      const sha = computeSha256(entry.content, entry.category, entry.frozen);
+      const stored = this.storage.getBySha256(sha);
       if (stored && stored.md_path === file.path) {
         skipped++;
         continue;
       }
 
-      // Re-read from md and re-sync
-      const entry = this.md.readEntry(file.path);
-      if (entry) {
-        this.syncOne(entry);
-        synced++;
-      }
+      this.syncOne(entry);
+      synced++;
     }
 
     return { synced, skipped };
@@ -63,5 +67,15 @@ export class CascadeSync {
 
   getByMdPath(mdPath: string): MemoryRow | null {
     return this.storage.getByMdPath(mdPath);
+  }
+
+  private autoCleanup(entry: MemoryEntry): void {
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+    const oldEntries = this.storage.listByOwner(entry.owner_id, 7);
+    for (const row of oldEntries) {
+      if (row.category === 'persistent' && !row.frozen && row.created_at < threeDaysAgo && !row.superseded_by) {
+        this.storage.updateRow(row.id, { frozen: 1 } as Partial<MemoryRow>);
+      }
+    }
   }
 }

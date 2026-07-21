@@ -13,7 +13,6 @@ export class MemoryStorage {
   constructor(dbPath: string) {
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = OFF');
     this.db.exec(SCHEMA_SQL);
   }
 
@@ -47,7 +46,7 @@ export class MemoryStorage {
 
   search(query: string, filters?: SearchFilters): SearchResult[] {
     const limit = filters?.limit ?? 5;
-    const conditions: string[] = [];
+    const conditions: string[] = ['m.superseded_by IS NULL'];
     const params: (string | number)[] = [];
 
     if (filters?.owner_id) {

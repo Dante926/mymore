@@ -35,7 +35,6 @@ describe('Consolidator', () => {
       frozen: false, access_count: 0,
     };
     cascade.syncOne(old);
-    consolidator.autoCleanup(old);
     const row = storage.getById('old-freeze')!;
     expect(row.frozen).toBe(1);
   });

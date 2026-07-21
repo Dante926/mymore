@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS memory_meta (
     content_sha256  TEXT NOT NULL,
     access_count    INTEGER DEFAULT 0,
     last_accessed_at TEXT,
-    FOREIGN KEY (fts_rowid) REFERENCES memory_fts(rowid),
     FOREIGN KEY (superseded_by) REFERENCES memory_meta(id)
 );
 

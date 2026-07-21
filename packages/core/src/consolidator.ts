@@ -22,20 +22,6 @@ export class Consolidator {
     private llmDedup?: (entries: { id: string; content: string; created_at: string }[]) => Promise<DedupResult>,
   ) {}
 
-  /**
-   * Lightweight checks run on every add_memory call.
-   */
-  autoCleanup(entry: MemoryEntry): void {
-    // Auto-freeze: entries older than 3 days get frozen
-    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
-    const oldEntries = this.storage.listByOwner(entry.owner_id, 7);
-    for (const row of oldEntries) {
-      if (row.category === 'persistent' && !row.frozen && row.created_at < threeDaysAgo && !row.superseded_by) {
-        this.storage.updateRow(row.id, { frozen: 1 });
-      }
-    }
-  }
-
   async run(input: { owner_id?: string; days?: number; dry_run?: boolean }): Promise<ConsolidationSummary> {
     const summary: ConsolidationSummary = { archived: 0, superseded: 0, frozen: 0, highlights: [] };
 

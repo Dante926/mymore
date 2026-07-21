@@ -11,7 +11,7 @@ import { getStorage, getCascade } from '../configuration.js';
     owner_id: z.string().describe('所属用户或 Agent ID'),
     track: z.enum(['user', 'agent']).optional().default('user').describe('分轨'),
     category: z.enum(['persistent', 'session', 'auto']).optional().default('auto').describe('三分类，auto 为自动分类'),
-    valid_until: z.string().nullable().optional().describe('有效期 ISO 日期，不传=永不过期'),
+    valid_until: z.string().datetime({ offset: true }).nullable().optional().describe('有效期 ISO 日期，不传=永不过期'),
     session_id: z.string().nullable().optional().describe('来源会话 ID'),
   },
 })

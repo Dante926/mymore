@@ -6,37 +6,53 @@ import { getStorage } from '../configuration.js';
 
 @Resource('memory_entry', {
   description: '浏览原始 Markdown 记忆文件',
-  uri: 'mymore://memory/{track}/{owner_id}/{kind}/{date}',
+  uri: 'mymore://memory/{id}',
   mimeType: 'text/markdown',
 })
 export class MemoryResource implements IMcpResource {
   async handle(uri: URL): Promise<{ contents: { uri: string; mimeType: string; text: string }[] }> {
     const parts = uri.pathname.split('/').filter(Boolean);
-    // Expected: memory/{track}/{owner_id}/{kind}/{date}
-    // e.g. memory/user/dante926/episodes/2026-07-21
+    // Expected: memory/{id}
 
-    if (parts.length < 4) {
+    if (parts.length < 2) {
       return {
         contents: [{
           uri: uri.toString(),
           mimeType: 'text/markdown',
-          text: '用法: mymore://memory/{track}/{owner_id}/{kind}/{date}',
+          text: '用法: mymore://memory/{id}',
         }],
       };
     }
 
-    const [, track, ownerId, kind, date] = parts;
-    const trackDir = track === 'agent' ? 'agents' : 'users';
+    const id = parts[1];
 
-    // Build file path
-    let mdPath: string;
-    const rootDir = process.env.MYMORE_ROOT || join(homedir(), '.mymore', 'memory');
-
-    if (date) {
-      mdPath = join(rootDir, trackDir, ownerId, kind, `${kind}-${date}.md`);
-    } else {
-      mdPath = join(rootDir, trackDir, ownerId, `${kind}.md`);
+    // Validate id to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      return {
+        contents: [{
+          uri: uri.toString(),
+          mimeType: 'text/markdown',
+          text: `Invalid entry ID format: ${id}`,
+        }],
+      };
     }
+
+    const storage = getStorage();
+    const row = storage.getById(id);
+    if (!row || !row.md_path) {
+      return {
+        contents: [{
+          uri: uri.toString(),
+          mimeType: 'text/markdown',
+          text: `Entry not found: ${id}`,
+        }],
+      };
+    }
+
+    const memoryRoot = process.env.MYMORE_ROOT
+      ? join(process.env.MYMORE_ROOT, 'memory')
+      : join(homedir(), '.mymore', 'memory');
+    const mdPath = join(memoryRoot, row.md_path);
 
     if (!existsSync(mdPath)) {
       return {

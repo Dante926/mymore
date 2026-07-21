@@ -6,7 +6,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm",
@@ -14,12 +17,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "13.0.1",
     "gray-matter": "^4.0.3",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/uuid": "^10.0.0"
   }
 }

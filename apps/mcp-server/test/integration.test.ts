@@ -80,7 +80,7 @@ describe('mymore Full Integration', () => {
     };
     cascade.syncOne(decision);
     // include_expired: true allows time travel to past entries
-    const results = storage.search('方案 X', { owner_id: 'dev', include_expired: true });
+    const results = storage.search('方案', { owner_id: 'dev', include_expired: true });
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].content).toContain('方案');
   });

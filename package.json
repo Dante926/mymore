@@ -1,0 +1,46 @@
+{
+  "name": "mymore",
+  "version": "1.0.0",
+  "private": true,
+  "description": "分类优先的轻量 MCP 记忆存储系统",
+  "scripts": {
+    "prepare": "husky install",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "publish": "changeset publish"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "lint-staged": {
+    "*.ts": ["prettier --write", "eslint --fix"],
+    "*.{json,md}": ["prettier --write"]
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@commitlint/cli": "^17.1.2",
+    "@commitlint/config-conventional": "^17.1.0",
+    "@types/node": "^22.14.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "husky": "^8.0.1",
+    "lint-staged": "^15.5.0",
+    "prettier": "^3.5.0",
+    "prettier-plugin-packagejson": "^2.5.0",
+    "tsup": "^8.4.0",
+    "typescript": "~5.2.2",
+    "vitest": "^3.1.0"
+  },
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.7.0"
+  }
+}

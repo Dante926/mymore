@@ -1,0 +1,10 @@
+node_modules
+.git
+*.md
+test
+coverage
+.tmp
+.claude
+.superpowers
+build
+docs

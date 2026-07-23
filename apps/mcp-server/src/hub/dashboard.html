@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mymore Memory Hub</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d1117; color: #c9d1d9; min-height: 100vh;
+  }
+
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 20px; color: #f0f6fc; }
+  .header .subtitle { font-size: 13px; color: #8b949e; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 20px; text-align: center;
+  }
+  .stat-card .value { font-size: 32px; font-weight: 700; color: #f0f6fc; }
+  .stat-card .label { font-size: 13px; color: #8b949e; margin-top: 4px; }
+
+  .charts-row { display: flex; gap: 24px; margin-bottom: 24px; }
+  .chart-box {
+    flex: 1; background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; padding: 20px;
+  }
+  .chart-box h3 { font-size: 14px; color: #8b949e; margin-bottom: 12px; }
+
+  .heatmap { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+  .heatmap-row { display: flex; gap: 3px; }
+  .heatmap-cell {
+    width: 14px; height: 14px; border-radius: 2px;
+    background: #21262d; cursor: pointer; position: relative;
+  }
+  .heatmap-cell[data-lvl="1"] { background: #0e4429; }
+  .heatmap-cell[data-lvl="2"] { background: #006d32; }
+  .heatmap-cell[data-lvl="3"] { background: #26a641; }
+  .heatmap-cell[data-lvl="4"] { background: #39d353; }
+  .heatmap-cell:hover::after {
+    content: attr(data-tip); position: absolute; bottom: 120%;
+    left: 50%; transform: translateX(-50%);
+    background: #30363d; color: #f0f6fc; padding: 4px 8px;
+    border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 10;
+  }
+
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; }
+  .bar {
+    flex: 1; min-height: 4px; border-radius: 4px 4px 0 0;
+    background: linear-gradient(to top, #1f6feb, #58a6ff);
+    position: relative; cursor: pointer;
+  }
+  .bar:hover::after {
+    content: attr(data-tip); position: absolute; top: -24px;
+    left: 50%; transform: translateX(-50%);
+    background: #30363d; color: #f0f6fc; padding: 2px 6px;
+    border-radius: 4px; font-size: 12px; white-space: nowrap;
+  }
+  .bar-labels { display: flex; gap: 8px; font-size: 11px; color: #8b949e; }
+  .bar-labels span { flex: 1; text-align: center; }
+
+  .timeline-section {
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; padding: 20px;
+  }
+  .timeline-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .timeline-header h3 { font-size: 16px; }
+  .filters { display: flex; gap: 8px; }
+  .filters input, .filters select {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    color: #c9d1d9; padding: 6px 12px; font-size: 13px;
+  }
+  .filters input { width: 200px; }
+  .filters select { cursor: pointer; }
+
+  .timeline { position: relative; padding-left: 20px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: #30363d;
+  }
+  .timeline-date {
+    position: relative; font-size: 13px; color: #8b949e;
+    margin: 16px 0 8px; padding-left: 12px;
+  }
+  .timeline-date::before {
+    content: ''; position: absolute; left: -21px; top: 5px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #1f6feb; border: 2px solid #0d1117;
+  }
+  .memory-card {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 12px 16px; margin: 8px 0; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .memory-card:hover { border-color: #58a6ff; }
+  .memory-card .meta { display: flex; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+  .memory-card .tag { padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  .tag-persistent { background: #0e4429; color: #26a641; }
+  .tag-session { background: #1f3a5f; color: #58a6ff; }
+  .tag-archived { background: #3d1f1f; color: #f85149; }
+  .memory-card .content { font-size: 14px; line-height: 1.5; }
+  .memory-card .time { font-size: 12px; color: #8b949e; margin-top: 4px; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7);
+  }
+  .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+  .modal {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;
+    padding: 24px;
+  }
+  .modal h2 { margin-bottom: 8px; }
+  .modal .meta { margin-bottom: 16px; }
+  .modal .body { white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
+  .modal .close {
+    float: right; background: none; border: none; color: #8b949e;
+    cursor: pointer; font-size: 20px;
+  }
+
+  .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 16px; align-items: center; }
+  .pagination button {
+    background: #21262d; border: 1px solid #30363d; border-radius: 6px;
+    color: #c9d1d9; padding: 6px 12px; cursor: pointer; font-size: 13px;
+  }
+  .pagination button:hover { background: #30363d; }
+  .pagination button.active { background: #1f6feb; border-color: #1f6feb; }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { flex-direction: column; }
+    .timeline-header { flex-direction: column; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>mymore Memory Hub</h1>
+    <div class="subtitle">记忆存储系统仪表盘</div>
+  </div>
+  <div id="headerInfo" style="font-size:13px;color:#8b949e">加载中...</div>
+</div>
+
+<div class="container">
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="value" id="statTotal">—</div><div class="label">总记忆数</div></div>
+    <div class="stat-card"><div class="value" id="statProjects">—</div><div class="label">分轨数</div></div>
+    <div class="stat-card"><div class="value" id="statActiveDays">—</div><div class="label">活跃天数（6月）</div></div>
+    <div class="stat-card"><div class="value" id="statAvg">—</div><div class="label">日均记忆</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-box">
+      <h3>📅 近 6 个月活动</h3>
+      <div id="heatmapContainer"><p style="color:#8b949e;font-size:13px">加载中...</p></div>
+    </div>
+    <div class="chart-box">
+      <h3>📈 近 7 日趋势</h3>
+      <div id="growthContainer"><p style="color:#8b949e;font-size:13px">加载中...</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-section">
+    <div class="timeline-header">
+      <h3>📝 记忆时间线</h3>
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="搜索记忆..." oninput="searchMemories()">
+        <select id="categoryFilter" onchange="searchMemories()">
+          <option value="">全部分类</option>
+          <option value="persistent">persistent</option>
+          <option value="session">session</option>
+          <option value="archived">archived</option>
+        </select>
+      </div>
+    </div>
+    <div id="timelineContainer"></div>
+    <div id="paginationContainer"></div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2 id="modalTitle">记忆详情</h2>
+    <div class="meta" id="modalMeta"></div>
+    <div class="body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1;
+
+async function loadJSON(url) {
+  const res = await fetch(url);
+  return res.json();
+}
+
+// ── 统计卡片 ──
+
+async function loadStats() {
+  const stats = await loadJSON('/api/stats');
+  document.getElementById('statTotal').textContent = stats.totalMemories;
+  document.getElementById('statProjects').textContent = stats.projects;
+  document.getElementById('statActiveDays').textContent = stats.activeDays;
+  document.getElementById('statAvg').textContent = stats.avgPerDay;
+  document.getElementById('headerInfo').innerHTML =
+    stats.totalMemories + ' 条记忆 · ' + stats.projects + ' 个分轨';
+}
+
+// ── 热力图（GitHub 风格，6 个月） ──
+
+async function loadHeatmap() {
+  const data = await loadJSON('/api/heatmap');
+  const map = {};
+  data.forEach(function(d) { map[d.date] = d.count; });
+  const vals = data.map(function(d) { return d.count; });
+  vals.sort(function(a,b) { return a - b; });
+
+  const p25 = vals[Math.floor(vals.length * 0.25)] || 1;
+  const p50 = vals[Math.floor(vals.length * 0.5)] || 2;
+  const p75 = vals[Math.floor(vals.length * 0.75)] || 3;
+
+  function getLevel(c) {
+    if (c === 0) return 0;
+    if (c <= p25) return 1; if (c <= p50) return 2; if (c <= p75) return 3;
+    return 4;
+  }
+
+  const now = new Date();
+  const start = new Date(now); start.setMonth(start.getMonth() - 5);
+  start.setDate(1);
+  const dayMs = 86400000;
+  const totalDays = Math.ceil((now - start) / dayMs) + 1;
+  const weeks = Math.ceil(totalDays / 7);
+
+  let html = '';
+  for (let w = 0; w < weeks; w++) {
+    html += '<div class="heatmap-row">';
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(start.getTime() + (w * 7 + d) * dayMs);
+      if (date > now) { html += '<div class="heatmap-cell"></div>'; continue; }
+      const key = date.toISOString().slice(0, 10);
+      const count = map[key] || 0;
+      html += '<div class="heatmap-cell" data-lvl="' + getLevel(count) + '" data-tip="' + count + ' 条 - ' + key + '"></div>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('heatmapContainer').innerHTML = html;
+}
+
+// ── 7 日柱状图 ──
+
+async function loadGrowth() {
+  const data = await loadJSON('/api/growth');
+  const max = Math.max.apply(null, data.map(function(d) { return d.count; })) || 1;
+  const days = ['周日','周一','周二','周三','周四','周五','周六'];
+  const now = new Date();
+  let bars = '<div class="bar-chart">';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const item = data.find(function(x) { return x.date === key; });
+    const count = item ? item.count : 0;
+    const h = Math.max(4, (count / max) * 100);
+    bars += '<div class="bar" style="height:' + h + 'px" data-tip="' + count + ' 条"></div>';
+  }
+  bars += '</div><div class="bar-labels">';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    bars += '<span>' + days[d.getDay()] + '</span>';
+  }
+  bars += '</div>';
+  document.getElementById('growthContainer').innerHTML = bars;
+}
+
+// ── 时间线 ──
+
+async function loadMemories(page) {
+  if (!page) page = 1;
+  currentPage = page;
+  const q = document.getElementById('searchInput').value;
+  const category = document.getElementById('categoryFilter').value;
+  let url = '/api/memories?page=' + page + '&pageSize=50';
+  if (q) url += '&q=' + encodeURIComponent(q);
+  if (category) url += '&category=' + encodeURIComponent(category);
+
+  const data = await loadJSON(url);
+  const container = document.getElementById('timelineContainer');
+  const pagination = document.getElementById('paginationContainer');
+
+  // 按日期分组
+  const groups = {};
+  data.memories.forEach(function(m) {
+    const date = m.created_at.slice(0, 10);
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(m);
+  });
+
+  let html = '<div class="timeline">';
+  Object.keys(groups).sort().reverse().forEach(function(date) {
+    html += '<div class="timeline-date">' + date + '</div>';
+    groups[date].forEach(function(m) {
+      const safeId = m.id.replace(/'/g, "\\'");
+      html += '<div class="memory-card" onclick="openModal(\'' + safeId + '\')">' +
+        '<div class="meta"><span class="tag tag-' + m.category + '">' + m.category +
+        '</span><span>' + m.track + '</span></div>' +
+        '<div class="content">' + escapeHtml(m.content.slice(0, 120)) +
+        (m.content.length > 120 ? '...' : '') + '</div>' +
+        '<div class="time">' + new Date(m.created_at).toLocaleString() + '</div></div>';
+    });
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  // 分页
+  if (data.totalPages > 1) {
+    let phtml = '<div class="pagination">';
+    for (let i = 1; i <= Math.min(data.totalPages, 10); i++) {
+      phtml += '<button class="' + (i === page ? 'active' : '') + '" onclick="loadMemories(' + i + ')">' + i + '</button>';
+    }
+    phtml += '<span style="color:#8b949e;font-size:13px">共 ' + data.total + ' 条</span></div>';
+    pagination.innerHTML = phtml;
+  } else {
+    pagination.innerHTML = '';
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── 模态框 ──
+
+var allMemoriesCache = null;
+
+async function openModal(id) {
+  if (!allMemoriesCache) {
+    const data = await loadJSON('/api/memories?pageSize=500');
+    allMemoriesCache = data.memories;
+  }
+  const m = allMemoriesCache.find(function(x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById('modalTitle').textContent = '记忆详情';
+  document.getElementById('modalMeta').innerHTML =
+    '<span class="tag tag-' + m.category + '">' + m.category + '</span> ' +
+    m.track + ' · ' + new Date(m.created_at).toLocaleString() +
+    ' · 访问 ' + m.access_count + ' 次';
+  document.getElementById('modalBody').textContent = m.content;
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+// ── 搜索防抖 ──
+
+var searchTimer;
+function searchMemories() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(function() { allMemoriesCache = null; loadMemories(1); }, 300);
+}
+
+// ── 初始化 ──
+
+loadStats();
+loadHeatmap();
+loadGrowth();
+loadMemories(1);
+</script>
+</body>
+</html>

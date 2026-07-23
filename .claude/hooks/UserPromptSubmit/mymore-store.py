@@ -70,7 +70,7 @@ json_input = json.dumps(payload, ensure_ascii=False)
 try:
     subprocess.run(
         ["docker", "compose", "run", "--rm", "-T", "mymore-mcp"],
-        input=json_input,
+        input=json_input + "\n",
         capture_output=True,
         text=True,
         cwd=str(project_root),

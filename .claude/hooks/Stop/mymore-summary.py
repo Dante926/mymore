@@ -19,7 +19,7 @@ from pathlib import Path
 def call_mymore(payload: dict) -> None:
     """通过 docker compose run 调用 mymore MCP 工具。"""
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    json_input = json.dumps(payload, ensure_ascii=False)
+    json_input = json.dumps(payload, ensure_ascii=False) + "\n"
 
     try:
         subprocess.run(

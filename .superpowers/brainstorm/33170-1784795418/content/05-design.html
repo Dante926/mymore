@@ -1,0 +1,55 @@
+<h2>mymore Memory Hub — 设计方案</h2>
+<div class="section">
+  <h3>架构</h3>
+  <div style="background:#1a1e24;padding:16px;border-radius:8px;font-family:monospace;font-size:14px;line-height:1.8">
+    browser → http://localhost:3456 → hub.js → memory.db (SQLite)
+    <br><br>
+    docker compose up -d<br>
+    ├── mymore-mcp  │  MCP stdio 服务<br>
+    └── mymore-hub  │  HTTP :3456 仪表盘
+  </div>
+</div>
+
+<div class="section">
+  <h3>功能</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">📊 统计卡片</div>
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">🔥 6 月热力图</div>
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">📈 7 日柱状图</div>
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">📝 记忆时间线</div>
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">🔍 搜索过滤</div>
+    <div style="background:#1a1e24;padding:12px;border-radius:6px">📂 项目筛选</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>文件结构</h3>
+  <div style="background:#1a1e24;padding:12px;border-radius:6px;font-family:monospace;font-size:13px">
+    apps/mcp-server/src/<br>
+    ├── bootstrap.ts         # MCP 服务（不变）<br>
+    └── hub/<br>
+        ├── server.js        # HTTP 服务 + API + 静态文件<br>
+        └── dashboard.html   # 前端仪表盘<br><br>
+    docker-compose.yml       # 新增 hub 服务
+  </div>
+</div>
+
+<div class="section">
+  <h3>API 接口</h3>
+  <div style="background:#1a1e24;padding:12px;border-radius:6px;font-family:monospace;font-size:13px">
+    GET  /               → dashboard.html<br>
+    GET  /api/stats      → { totalMemories, projects, activeDays, avgDaily }<br>
+    GET  /api/heatmap    → [{ date, count }] 近 6 月<br>
+    GET  /api/growth     → [{ date, count }] 近 7 日<br>
+    GET  /api/memories   → [{ id, content, category, created_at }] 分页<br>
+    GET  /api/memories?q=关键词 → 搜索<br>
+    GET  /health         → { status: 'ok' }
+  </div>
+</div>
+
+<div class="option" style="margin-top:20px;cursor:default;border-color:#58a6ff">
+  <div class="content">
+    <h3>✅ 设计已确定</h3>
+    <p>确认没问题后，我进入下一步——写正式设计文档</p>
+  </div>
+</div>

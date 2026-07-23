@@ -16,9 +16,9 @@ services:
 
   mymore-hub:
     build:
-      context: .
-      dockerfile: apps/mcp-server/Dockerfile
-    image: mymore-mcp
+      context: apps/hub
+      dockerfile: Dockerfile
+    image: mymore-hub
     container_name: mymore-hub
     restart: unless-stopped
     ports:
@@ -28,4 +28,3 @@ services:
     environment:
       - MYMORE_ROOT=/root/.mymore
       - MYMORE_HUB_PORT=3456
-    command: ["node", "apps/mcp-server/dist/hub/server.js"]

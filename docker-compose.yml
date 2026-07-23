@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  mymore-mcp:
+    build:
+      context: .
+      dockerfile: apps/mcp-server/Dockerfile
+    image: mymore-mcp
+    container_name: mymore-mcp
+    restart: unless-stopped
+    stdin_open: true
+    tty: false
+    volumes:
+      - ~/.mymore:/root/.mymore
+    environment:
+      - MYMORE_ROOT=/root/.mymore

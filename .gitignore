@@ -6,3 +6,4 @@ dist
 .tmp
 ~/.mymore
 coverage
+.superpowers/

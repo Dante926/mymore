@@ -97,9 +97,10 @@ pnpm test          # 38 个测试
 | Phase       | 新增                                              | 状态      |
 | ----------- | ------------------------------------------------- | --------- |
 | **Phase 1** | Markdown + FTS5 + Frozen Snapshot + Consolidation | ✅ 完成   |
-| Phase 2     | 文件 watcher 实时检测 md 编辑                     | 📋 待开发 |
-| Phase 3     | Episode → AtomicFact 提取层                       | 📋 待开发 |
-| Phase 4     | 向量库（LanceDB / pgvector）                      | 📋 待开发 |
+| **Phase 2** | 为 mymore 装配 Hook，Agent 自动存储和读取记忆    | 📋 待开发 |
+| Phase 3     | 文件 watcher 实时检测 md 编辑                     | 📋 待开发 |
+| Phase 4     | Episode → AtomicFact 提取层                       | 📋 待开发 |
+| Phase 5     | 向量库（LanceDB / pgvector）                      | 📋 待开发 |
 
 ---
 

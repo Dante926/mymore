@@ -646,10 +646,11 @@ if __name__ == "__main__":
 | Phase | 新增 | 触发条件 |
 |---|---|---|
 | **Phase 1** | Markdown + FTS5 + Frozen Snapshot + Consolidation | ✅ 初始可用 |
-| **Phase 2** | 文件 watcher（chokidar）实时检测 md 编辑 | md 编辑场景变多 |
-| **Phase 3** | Episode → AtomicFact 提取层 | 需要精细语义匹配 |
-| **Phase 4** | 向量库（LanceDB / pgvector） | 模糊查询 > 30% |
-| **Phase 5** | 聚类反射（deprecated_by 自动合并） | 记忆量膨胀到需自动整理 |
+| **Phase 2** | 为 mymore 装配 Hook，Agent 自动存储和读取记忆 | Agent 需自动管理记忆 |
+| Phase 3 | 文件 watcher（chokidar）实时检测 md 编辑 | md 编辑场景变多 |
+| Phase 4 | Episode → AtomicFact 提取层 | 需要精细语义匹配 |
+| Phase 5 | 向量库（LanceDB / pgvector） | 模糊查询 > 30% |
+| Phase 6 | 聚类反射（deprecated_by 自动合并） | 记忆量膨胀到需自动整理 |
 | **Phase N** | mymore-ui（WebUI 监控） | 需要可视化浏览 |
 
 每个 Phase 的数据结构已在 Phase 1 中预留 —— `track` / `session_id` / `parent_id` / `superseded_by` / `frozen` 字段从一开始就存在，升配不需要改表。

@@ -4,6 +4,8 @@ dist
 *.log
 .env
 .tmp
-~/.mymore
 coverage
 .superpowers/
+.claude/
+*.tsbuildinfo
+.mymore

@@ -1,5 +1,11 @@
 # mymore 记忆系统指令
 
+## 架构说明
+
+mymore 使用常驻容器模式：`docker compose up -d` 保持 `mymore-mcp` 容器后台运行，
+所有 Claude Code 会话通过 `docker exec -i` 连接到同一个容器，共享数据卷。
+无需手动管理容器生命周期。
+
 ## 记忆检索
 
 当用户提及以下内容时，主动调用 mymore 的 `search_memory` 工具检索相关记忆：

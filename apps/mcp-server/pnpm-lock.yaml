@@ -34,10 +34,6 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
 
-  ../..: {}
-
-  ../../packages/core: {}
-
 packages:
 
   '@hono/node-server@1.19.14':

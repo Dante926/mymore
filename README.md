@@ -72,13 +72,13 @@ docker run -i --rm -v ~/.mymore:/root/.mymore mymore-mcp
   "mcpServers": {
     "mymore": {
       "command": "docker",
-      "args": ["compose", "run", "--rm", "mymore-mcp"]
+      "args": ["exec", "-i", "mymore-mcp", "node", "apps/mcp-server/dist/bootstrap.js"]
     }
   }
 }
 ```
 
-_如果 compose 文件不在 Claude Desktop 的工作目录下，需通过 `-f` 指定完整路径。_
+*注意：需要先运行 `docker compose up -d` 启动常驻容器。*
 
 ---
 

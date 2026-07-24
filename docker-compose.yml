@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   mymore-mcp:
@@ -14,3 +13,18 @@ services:
       - ~/.mymore:/root/.mymore
     environment:
       - MYMORE_ROOT=/root/.mymore
+
+  mymore-hub:
+    build:
+      context: apps/hub
+      dockerfile: Dockerfile
+    image: mymore-hub
+    container_name: mymore-hub
+    restart: unless-stopped
+    ports:
+      - "3456:3456"
+    volumes:
+      - ~/.mymore:/root/.mymore
+    environment:
+      - MYMORE_ROOT=/root/.mymore
+      - MYMORE_HUB_PORT=3456

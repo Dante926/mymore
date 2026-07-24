@@ -1,0 +1,14 @@
+node_modules
+.git
+dist
+.DS_Store
+*.log
+.env
+.tmp
+coverage
+.claude
+.superpowers
+.superpowers/**
+build
+docs
+apps/hub/node_modules

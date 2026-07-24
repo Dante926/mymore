@@ -3,8 +3,9 @@
     "mymore": {
       "command": "docker",
       "args": [
-        "compose", "run", "--rm",
-        "mymore-mcp"
+        "exec", "-i",
+        "mymore-mcp",
+        "node", "apps/mcp-server/dist/bootstrap.js"
       ],
       "env": {
         "MYMORE_ROOT": "/root/.mymore"

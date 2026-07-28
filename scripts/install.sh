@@ -139,12 +139,20 @@ claude plugin install "${PLUGIN_NAME}" --scope user 2>&1 | tail -1 || {
 }
 log "插件已安装 (scope: user)"
 
-# 安装 hook 依赖（better-sqlite3 等原生模块）
-step "安装依赖"
-echo "  正在安装 hook 依赖..."
-cd "$PROJECT_DIR"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install 2>&1 | tail -3
-log "依赖安装完成"
+# 安装依赖到插件缓存（hooks 需要 @mymore/core）
+step "安装插件依赖"
+PLUGIN_CACHE_DIR="$HOME/.claude/plugins/cache/mymore/mymore"
+CACHED_VERSION=$(ls "$PLUGIN_CACHE_DIR" 2>/dev/null | sort -V | tail -1)
+if [[ -n "$CACHED_VERSION" ]] && [[ -d "$PLUGIN_CACHE_DIR/$CACHED_VERSION" ]]; then
+  echo "  在插件缓存目录安装 workspace 依赖..."
+  cd "$PLUGIN_CACHE_DIR/$CACHED_VERSION"
+  pnpm install --frozen-lockfile 2>/dev/null || pnpm install 2>&1 | tail -2
+  echo ""
+  log "插件依赖安装完成"
+  cd "$PROJECT_DIR"
+else
+  warn "未找到插件缓存目录，跳过依赖安装"
+fi
 
 # ── 验证 ──
 step "验证"

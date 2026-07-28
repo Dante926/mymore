@@ -96,7 +96,12 @@ async function main() {
       process.exit(0);
     }
 
+    // Count session-type (raw) entries pending reflection
+    const rawCount = recentMemories.filter(m => m.category === 'session').length;
     const contextParts = [];
+    if (rawCount > 0) {
+      contextParts.push(`Note: ${rawCount} raw episode(s) pending reflection (auto-expire in 1h).`);
+    }
     if (lastSession) {
       const timeAgo = formatRelativeTime(lastSession.timestamp);
       contextParts.push(`Last session (${timeAgo}, ${lastSession.turnCount} turns): ${lastSession.summary}`);
@@ -123,6 +128,9 @@ async function main() {
       displayOutput = `💡 mymore: ${recentMemories.length} memories loaded`;
     } else {
       displayOutput = `💡 mymore: Ready`;
+    }
+    if (rawCount > 0) {
+      displayOutput += ` | ${rawCount} raw pending`;
     }
 
     console.log(JSON.stringify({ continue: true, systemMessage: displayOutput, systemPrompt: contextMessage }));

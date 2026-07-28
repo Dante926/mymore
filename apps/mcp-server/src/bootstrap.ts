@@ -215,5 +215,53 @@ server.tool(
   },
 );
 
+server.tool(
+  'reflect_all',
+  {
+    group_key: z.string().optional().describe('Optional: limit to a specific project'),
+    owner_id: z.string().optional().default('dante926'),
+    dry_run: z.boolean().optional().default(false),
+  },
+  async (args) => {
+    try {
+      const filters: any = { owner_id: args.owner_id, category: 'session', limit: 200 };
+      if (args.group_key) filters.group_key = args.group_key;
+
+      const all = storage.search(null, filters);
+      if (all.length === 0) {
+        return { content: [{ type: 'text' as const, text: JSON.stringify({ clusters: [], total: 0, message: 'No raw episodes to reflect on.' }) }] };
+      }
+
+      const byGroup: Record<string, typeof all> = {};
+      for (const ep of all) {
+        const gk = ep.group_key || 'default';
+        if (!byGroup[gk]) byGroup[gk] = [];
+        byGroup[gk].push(ep);
+      }
+
+      const clusters: { group_key: string; time: string; turns: { role: string; content: string }[]; ids: string[] }[] = [];
+      for (const [gk, eps] of Object.entries(byGroup)) {
+        const sorted = eps.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        let current: { group_key: string; time: string; turns: { role: string; content: string }[]; ids: string[] } | null = null;
+        for (const ep of sorted) {
+          const t = new Date(ep.created_at).getTime();
+          if (!current || t - new Date(current.time).getTime() > 300000) {
+            current = { group_key: gk, time: ep.created_at, turns: [], ids: [] };
+            clusters.push(current);
+          }
+          current.turns.push({ role: ep.track === 'agent' ? 'assistant' : 'user', content: ep.content.slice(0, 2000) });
+          current.ids.push(ep.id);
+        }
+      }
+
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ clusters, total: all.length, dry_run: args.dry_run }, null, 2) }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }], isError: true };
+    }
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);

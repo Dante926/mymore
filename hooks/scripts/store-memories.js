@@ -3,8 +3,9 @@
 /**
  * mymore — Stop Hook
  *
- * 1) 自动保存最后一轮对话原文（raw episode）
- * 2) 运行 consolidate 维护（归档过期、清理噪音）
+ * 1) 保存最后一轮对话原文为 session（raw episode）
+ * 2) 清理超过 1 小时的未处理 session
+ * 3) 归档过期条目 + 清理 30 天前的旧数据
  */
 
 process.on('uncaughtException', () => process.exit(0));
@@ -39,7 +40,7 @@ function appendToGroupMd(entry) {
   }
 }
 
-// ── FTS5 append (same group_key = merge content into one row) ──
+// ── FTS5 append ──
 function appendToFts5(db, groupKey, content, entry) {
   const existing = db.prepare("SELECT id, fts_rowid FROM memory_meta WHERE group_key = ? AND owner_id = ? AND category = ? AND superseded_by IS NULL")
     .get(groupKey, entry.owner_id, entry.category);
@@ -61,7 +62,7 @@ function appendToFts5(db, groupKey, content, entry) {
   return entry.id;
 }
 
-// ── Extract last turn from transcript ──
+// ── Extract last turn ──
 function extractLastTurn(lines) {
   let start = 0;
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -84,29 +85,32 @@ function extractLastTurn(lines) {
   return { user: user.join('\n\n'), assistant: assistant.join('\n\n') };
 }
 
-// ── Consolidate: archive expired, dedup, purge ──
+// ── Consolidate: cleanup stale sessions, archive, purge ──
 function runConsolidate(db) {
-  const archived = db.prepare("SELECT id FROM memory_meta WHERE valid_until IS NOT NULL AND valid_until < datetime('now') AND superseded_by IS NULL").all();
-  if (archived.length) {
-    const t = db.transaction(() => { for (const e of archived) db.prepare("UPDATE memory_meta SET category='archived', frozen=0 WHERE id=?").run(e.id); });
+  // Delete stale session entries (>1h)
+  const stale = db.prepare(
+    "SELECT id, fts_rowid FROM memory_meta WHERE category='session' AND created_at < datetime('now', '-1 hour') AND superseded_by IS NULL"
+  ).all();
+  if (stale.length) {
+    const t = db.transaction(() => {
+      for (const s of stale) {
+        db.prepare('DELETE FROM memory_fts WHERE rowid=?').run(s.fts_rowid);
+        db.prepare('DELETE FROM memory_meta WHERE id=?').run(s.id);
+      }
+    });
+    t();
+    debug('cleaned stale sessions:', stale.length);
+  }
+
+  // Archive expired
+  const expired = db.prepare("SELECT id FROM memory_meta WHERE valid_until IS NOT NULL AND valid_until < datetime('now') AND superseded_by IS NULL").all();
+  if (expired.length) {
+    const t = db.transaction(() => { for (const e of expired) db.prepare("UPDATE memory_meta SET category='archived', frozen=0 WHERE id=?").run(e.id); });
     t();
   }
 
-  // Dedup by group_key: keep latest, deprecate older
-  const groups = db.prepare("SELECT group_key, owner_id, category FROM memory_meta WHERE group_key IS NOT NULL AND superseded_by IS NULL AND category='session' GROUP BY group_key, owner_id, category").all();
-  for (const g of groups) {
-    const rows = db.prepare("SELECT id FROM memory_meta WHERE group_key=? AND owner_id=? AND category=? AND superseded_by IS NULL ORDER BY created_at DESC").all(g.group_key, g.owner_id, g.category);
-    if (rows.length > 1) {
-      const keeper = rows[0];
-      const tx = db.transaction(() => {
-        for (let i = 1; i < rows.length; i++) db.prepare("UPDATE memory_meta SET superseded_by=?, category='archived' WHERE id=?").run(keeper.id, rows[i].id);
-      });
-      tx();
-    }
-  }
-
   // Purge archived > 30 days
-  const purged = db.prepare("SELECT id, md_path, fts_rowid FROM memory_meta WHERE category='archived' AND created_at < datetime('now', '-30 days')").all();
+  const purged = db.prepare("SELECT id, fts_rowid FROM memory_meta WHERE category='archived' AND created_at < datetime('now', '-30 days')").all();
   if (purged.length) {
     const t = db.transaction(() => {
       for (const p of purged) {
@@ -116,10 +120,8 @@ function runConsolidate(db) {
     });
     t();
   }
-  return { archived: archived.length, purged: purged.length };
 }
 
-// ── Main ──
 async function main() {
   try {
     let input = '';
@@ -148,7 +150,6 @@ async function main() {
       if (hasContent(turn.user) || hasContent(turn.assistant)) {
         const db = openDb();
         const now = new Date().toISOString();
-        const results = [];
 
         for (const item of [
           { content: turn.user, role: 'user', track: 'user', ownerId: 'dante926' },
@@ -161,21 +162,17 @@ async function main() {
             };
             const id = appendToFts5(db, groupId, item.content, entry);
             appendToGroupMd({ ...entry, id });
-            results.push(item.role);
           }
         }
         db.close();
-        debug('saved:', results);
-        process.stdout.write(JSON.stringify({ systemMessage: `💾 mymore: Saved ${results.length} turn(s) [raw]` }));
       }
     }
 
-    // ── Step 2: Run consolidate ──
+    // ── Step 2: Consolidate ──
     if (existsSync(dbPath)) {
       const db = openDb();
-      const stat = runConsolidate(db);
+      runConsolidate(db);
       db.close();
-      debug('consolidated:', stat);
     }
 
     process.exit(0);

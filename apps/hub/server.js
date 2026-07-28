@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * mymore Memory Hub — HTTP 仪表盘服务器
+ * MymoreHub — HTTP 仪表盘服务器
  *
  * 使用 Node.js 内置 node:sqlite（Node 22+），
  * 零外部依赖，跨平台兼容。

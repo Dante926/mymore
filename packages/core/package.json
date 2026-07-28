@@ -3,18 +3,29 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./cjs/index.js",
+  "module": "./esm/index.js",
+  "types": "./cjs/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./esm/index.js",
+      "require": "./cjs/index.js",
+      "types": "./cjs/index.d.ts"
     }
   },
+  "files": [
+    "cjs",
+    "esm"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm",
+    "build": "father build",
+    "dev": "father build --watch",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "father": {
+    "esm": { "input": "src", "output": "esm", "platform": "browser" },
+    "cjs": { "input": "src", "output": "cjs", "platform": "node" }
   },
   "dependencies": {
     "better-sqlite3": "13.0.1",
@@ -23,6 +34,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "^10.0.0",
+    "father": "^4.5.0"
   }
 }

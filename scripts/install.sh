@@ -138,7 +138,6 @@ claude plugin install "${PLUGIN_NAME}" --scope user 2>&1 | tail -1 || {
   }
 }
 log "插件已安装 (scope: user)"
-fi
 
 # 安装 hook 依赖（better-sqlite3 等原生模块）
 step "安装依赖"

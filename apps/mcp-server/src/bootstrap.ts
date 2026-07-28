@@ -60,12 +60,12 @@ server.tool(
       let mdPath: string;
       let actualId = entry.id;
       if (args.group_key) {
-        // Append to existing group (FTS5 + markdown)
-        const merged = { ...entry, group_key: args.group_key };
-        const row = storage.appendToGroup(args.group_key, args.content, merged);
-        actualId = row.id;
-        const mdEntry = { ...merged, id: actualId };
+        // Create new FTS5 entry (individual row per entry for correct timestamps)
+        // Append to group Markdown file for human readability
+        const mdEntry = { ...entry, group_key: args.group_key };
+        const result = cascade.syncOne(mdEntry);
         mdPath = md.appendToGroup(mdEntry);
+        actualId = entry.id;
         storage.updateMdPath(actualId, mdPath);
       } else {
         const result = cascade.syncOne(entry);

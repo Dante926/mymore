@@ -69,7 +69,6 @@ export class MemoryStorage {
       const oldId = existing.id as string;
 
       this.db.prepare('UPDATE memory_fts SET content = ? WHERE rowid = ?').run(updated, existing.fts_rowid as number);
-      this.db.prepare('UPDATE memory_meta SET created_at = ? WHERE id = ?').run(entry.created_at, oldId);
       this.db.prepare('UPDATE memory_meta SET access_count = access_count + 1 WHERE id = ?').run(oldId);
 
       // Update md file

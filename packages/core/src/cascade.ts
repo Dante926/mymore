@@ -62,6 +62,24 @@ export class CascadeSync {
       synced++;
     }
 
+    // Also reconcile group files with FTS5
+    const groupFiles = this.md.scanGroups();
+    for (const gf of groupFiles) {
+      const groupKey = gf.path.replace('groups/', '').replace('.md', '');
+      const entries = this.md.readGroupEntries(groupKey);
+      for (const entry of entries) {
+        const existing = this.storage.getById(entry.id);
+        if (existing && existing.md_path === gf.path) {
+          skipped++;
+          continue;
+        }
+        // Add to FTS5 if not yet indexed
+        this.storage.add(entry);
+        this.storage.updateMdPath(entry.id, gf.path);
+        synced++;
+      }
+    }
+
     return { synced, skipped };
   }
 

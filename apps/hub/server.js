@@ -59,30 +59,29 @@ function serveStatic(res, filePath, contentType) {
 // ── API ───────────────────────────────────────────────────
 
 function apiStats(req, res) {
-  const total = queryOne('SELECT COUNT(*) as count FROM memory_meta');
-  const byCategory = queryAll('SELECT category, COUNT(*) as count FROM memory_meta GROUP BY category');
-  const byTrack = queryAll('SELECT track, COUNT(*) as count FROM memory_meta GROUP BY track');
-  const activeDays = queryOne(`SELECT COUNT(DISTINCT date(created_at)) as count FROM memory_meta WHERE created_at > datetime('now', '-6 months')`);
+  const total = queryOne("SELECT COUNT(*) as count FROM memory_meta WHERE superseded_by IS NULL");
+  const byCategory = queryAll("SELECT category, COUNT(*) as count FROM memory_meta WHERE superseded_by IS NULL GROUP BY category");
+  const byGroup = queryAll("SELECT COUNT(DISTINCT group_key) as count FROM memory_meta WHERE superseded_by IS NULL AND group_key IS NOT NULL");
+  const activeDays = queryOne(`SELECT COUNT(DISTINCT date(created_at)) as count FROM memory_meta WHERE superseded_by IS NULL AND created_at > datetime('now', '-6 months')`);
   const first = queryOne('SELECT MIN(created_at) as first FROM memory_meta');
   const days = first?.first ? Math.max(1, Math.ceil((Date.now() - new Date(first.first).getTime()) / 86400000)) : 1;
 
   sendJson(res, {
     totalMemories: total?.count || 0,
     byCategory: Object.fromEntries(byCategory.map(r => [r.category, r.count])),
-    byTrack: Object.fromEntries(byTrack.map(r => [r.track, r.count])),
-    projects: byTrack.length,
+    projects: byGroup?.[0]?.count || 0,
     activeDays: activeDays?.count || 0,
     avgPerDay: ((total?.count || 0) / days).toFixed(1),
   });
 }
 
 function apiHeatmap(req, res) {
-  const rows = queryAll(`SELECT date(created_at) as date, COUNT(*) as count FROM memory_meta WHERE created_at > datetime('now', '-6 months') GROUP BY date(created_at) ORDER BY date ASC`);
+  const rows = queryAll(`SELECT date(created_at) as date, COUNT(*) as count FROM memory_meta WHERE superseded_by IS NULL AND created_at > datetime('now', '-6 months') GROUP BY date(created_at) ORDER BY date ASC`);
   sendJson(res, rows);
 }
 
 function apiGrowth(req, res) {
-  const rows = queryAll(`SELECT date(created_at) as date, COUNT(*) as count FROM memory_meta WHERE created_at > datetime('now', '-7 days') GROUP BY date(created_at) ORDER BY date ASC`);
+  const rows = queryAll(`SELECT date(created_at) as date, COUNT(*) as count FROM memory_meta WHERE superseded_by IS NULL AND created_at > datetime('now', '-7 days') GROUP BY date(created_at) ORDER BY date ASC`);
   sendJson(res, rows);
 }
 
@@ -104,7 +103,7 @@ function apiMemories(req, res) {
   }
 
   const total = queryOne(`SELECT COUNT(*) as total FROM memory_fts f JOIN memory_meta m ON f.rowid = m.fts_rowid ${where}`, params)?.total || 0;
-  const memories = queryAll(`SELECT m.id, f.content, m.category, m.track, m.created_at, m.valid_until, m.superseded_by, m.frozen, m.access_count FROM memory_fts f JOIN memory_meta m ON f.rowid = m.fts_rowid ${where} ORDER BY m.created_at DESC LIMIT ? OFFSET ?`, [...params, pageSize, offset]);
+  const memories = queryAll(`SELECT m.id, f.content, m.category, m.track, m.created_at, m.valid_until, m.superseded_by, m.frozen, m.access_count, m.group_key FROM memory_fts f JOIN memory_meta m ON f.rowid = m.fts_rowid ${where} ORDER BY m.created_at DESC LIMIT ? OFFSET ?`, [...params, pageSize, offset]);
 
   sendJson(res, {
     memories: memories.map(r => ({ ...r, frozen: !!r.frozen })),

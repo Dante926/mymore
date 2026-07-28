@@ -14,6 +14,7 @@ export interface MemoryEntry {
   superseded_by?: string;
   session_id?: string;
   parent_id?: string;
+  group_key?: string;
   frozen: boolean;
   access_count: number;
   last_accessed_at?: string;
@@ -32,6 +33,7 @@ export interface MemoryRow {
   superseded_by: string | null;
   session_id: string | null;
   parent_id: string | null;
+  group_key: string | null;
   content_sha256: string;
   access_count: number;
   last_accessed_at: string | null;
@@ -64,6 +66,7 @@ export interface SearchFilters {
   owner_id?: string;
   track?: Track;
   category?: Category;
+  group_key?: string;
   include_expired?: boolean;
   limit?: number;
 }
@@ -99,6 +102,7 @@ CREATE TABLE IF NOT EXISTS memory_meta (
     superseded_by   TEXT,
     session_id      TEXT,
     parent_id       TEXT,
+    group_key       TEXT,
     content_sha256  TEXT NOT NULL,
     access_count    INTEGER DEFAULT 0,
     last_accessed_at TEXT,
@@ -109,4 +113,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_track_owner ON memory_meta(track, owner_id
 CREATE INDEX IF NOT EXISTS idx_memory_category ON memory_meta(category);
 CREATE INDEX IF NOT EXISTS idx_memory_frozen ON memory_meta(frozen);
 CREATE INDEX IF NOT EXISTS idx_memory_valid ON memory_meta(valid_until);
+`;
+
+// Migration: add group_key column + index for existing databases
+export const MIGRATION_SQL = `
+ALTER TABLE memory_meta ADD COLUMN group_key TEXT;
+CREATE INDEX IF NOT EXISTS idx_memory_group_key ON memory_meta(group_key);
 `;

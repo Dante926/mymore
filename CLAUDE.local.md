@@ -16,10 +16,41 @@
 3. 如果结果不确定或有多个相似条目 → 向用户确认后再使用
 4. 如果没找到 → 告知用户未找到相关记忆
 
-### 自动存储说明
+## 记忆存储（原始 → 精炼 双阶段）
 
-本项目已配置 Claude Code Hooks：
-- **UserPromptSubmit Hook**：自动存储用户偏好、技术决策、Bug 修复等关键信息到 mymore（persistent 分类）
-- **Stop Hook**：会话结束时自动存储摘要（session 分类）+ 运行 consolidate
+### 阶段一：自动保存（Hooks 完成，无需干预）
 
-无需手动调用 `add_memory`。需要记忆时使用 `search_memory` 即可。
+Stop Hook 会自动保存每次对话的原文到 `session` 分类，存储为 raw episode。
+这些条目可能比较嘈杂，但确保不丢失任何信息。
+
+### 阶段二：精炼摘要（Reflection — Claude 主导）
+
+以下流程会在适当时机自动触发或由你主动执行：
+
+1. 调用 `reflect_memories` 查看当前项目未处理的 raw episodes
+2. 按时间段聚类浏览原始对话
+3. 对**有持久价值的**对话（决策、偏好、架构选型、Bug 修复、项目约定），用 `add_memory` 创建精炼后的 persistent 条目
+4. 用 `deprecate_episodes` 标记已处理的 raw episodes 为 deprecated
+
+### 摘要生成模板
+
+当创建精炼记忆时，使用以下格式：
+
+```
+## {类型}: {一句话主题}
+
+**详情**: {2-3 句关键事实}
+```
+
+示例：
+```
+## decision: 改用 TypeScript strict 模式
+
+**详情**: 团队决定开启 TypeScript strict 模式以提高类型安全性。主要变更包括 strictNullChecks 和 noImplicitAny。
+```
+
+### 核心原则
+
+1. **聚合优先** — 始终用 `group_key`，绝不创建无归属的孤立记录
+2. **结构化摘要** — 不存原始对话片段，只存提炼后的事实
+3. **只有持久价值** — 临时信息不存，能靠代码/日志重现的不存

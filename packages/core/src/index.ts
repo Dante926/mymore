@@ -5,13 +5,13 @@ export type {
   AddMemoryInput, SearchFilters, ConsolidateInput,
   FrozenSnapshotInput, Track, Category,
 } from './models.js';
-export { SCHEMA_SQL } from './models.js';
+export { SCHEMA_SQL, MIGRATION_SQL } from './models.js';
 
 export { classifyMemory } from './classifier.js';
 
 export { MemoryStorage, computeSha256 } from './storage.js';
 
-export { MarkdownHandler, mdPathForEntry } from './markdown.js';
+export { MarkdownHandler, mdPathForEntry, groupFilePath } from './markdown.js';
 
 export { CascadeSync } from './cascade.js';
 

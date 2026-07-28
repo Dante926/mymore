@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { MarkdownHandler, mdPathForEntry } from '../src/markdown.js';
+import { MarkdownHandler, mdPathForEntry, groupFilePath } from '../src/markdown.js';
 import type { MemoryEntry } from '../src/models.js';
 
 describe('MarkdownHandler', () => {
@@ -114,5 +114,79 @@ describe('MarkdownHandler', () => {
     };
     const p = mdPathForEntry('/root', entry);
     expect(p).toBe('/root/users/dave/episodes/uniq-id.md');
+  });
+
+  // ── Group-append tests ─────────────────────────────────────
+
+  it('groupFilePath should produce correct path', () => {
+    const p = groupFilePath('/root', 'my-project');
+    expect(p).toBe('/root/groups/my-project.md');
+  });
+
+  it('should append to a new group file (create)', () => {
+    const entry: MemoryEntry = {
+      id: 'g-test-1', track: 'user', owner_id: 'alice',
+      category: 'persistent', content: 'first entry in group',
+      created_at: '2026-07-27T10:00:00Z', frozen: false, access_count: 0,
+      group_key: 'append-test',
+    };
+    const relPath = handler.appendToGroup(entry);
+    expect(relPath).toBe('groups/append-test.md');
+    expect(existsSync(join(tmpDir, 'groups/append-test.md'))).toBe(true);
+  });
+
+  it('should append to an existing group file', () => {
+    const entry1: MemoryEntry = {
+      id: 'g-test-2', track: 'user', owner_id: 'alice',
+      category: 'persistent', content: 'second entry',
+      created_at: '2026-07-27T11:00:00Z', frozen: false, access_count: 0,
+      group_key: 'append-test',
+    };
+    handler.appendToGroup(entry1);
+
+    const raw = readFileSync(join(tmpDir, 'groups/append-test.md'), 'utf-8');
+    // Should have both the first and second entries
+    expect(raw).toContain('first entry in group');
+    expect(raw).toContain('second entry');
+    // Should have two entry headers
+    const matches = raw.match(/^## /gm);
+    expect(matches).toHaveLength(2);
+  });
+
+  it('should read back group entries in order', () => {
+    const entries = handler.readGroupEntries('append-test');
+    expect(entries).toHaveLength(2);
+    expect(entries[0].id).toBe('g-test-1');
+    expect(entries[0].content).toContain('first entry in group');
+    expect(entries[1].id).toBe('g-test-2');
+    expect(entries[1].content).toContain('second entry');
+  });
+
+  it('should read group header frontmatter', () => {
+    const header = handler.readGroupHeader('append-test');
+    expect(header).not.toBeNull();
+    expect(header!.group_key).toBe('append-test');
+    expect(header!.owner_id).toBe('alice');
+    expect(header!.updated_at).toBe('2026-07-27T11:00:00Z');
+  });
+
+  it('should scan group files', () => {
+    const groups = handler.scanGroups();
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups.some(g => g.path === 'groups/append-test.md')).toBe(true);
+    expect(groups[0].sha256.length).toBe(64);
+  });
+
+  it('scanAll should include individual files only (groups via scanGroups)', () => {
+    const all = handler.scanAll();
+    const groupIncluded = all.some(f => f.path.startsWith('groups/'));
+    const userIncluded = all.some(f => f.path.startsWith('users/'));
+    expect(groupIncluded).toBe(false);  // groups handled by scanGroups
+    expect(userIncluded).toBe(true);
+  });
+
+  it('should return empty for non-existent group', () => {
+    expect(handler.readGroupEntries('non-existent')).toEqual([]);
+    expect(handler.readGroupHeader('non-existent')).toBeNull();
   });
 });

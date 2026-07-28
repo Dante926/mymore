@@ -1,0 +1,18 @@
+{
+  "name": "mymore",
+  "owner": {
+    "name": "dante926",
+    "url": "https://github.com/dante926"
+  },
+  "plugins": [
+    {
+      "name": "mymore",
+      "source": "./",
+      "description": "本地优先的 AI Agent 记忆系统 — 自动保存和注入记忆，跨会话持久化",
+      "version": "1.0.0",
+      "homepage": "https://github.com/dante926/mymore",
+      "repository": "https://github.com/dante926/mymore",
+      "license": "MIT"
+    }
+  ]
+}

@@ -6,20 +6,22 @@ import type { Track, Category } from '@mymore/core';
 @Tool('search_memory', {
   description: '搜索记忆，支持关键词全文检索和结构化字段过滤',
   inputSchema: {
-    query: z.string().describe('搜索关键词'),
+    query: z.string().optional().describe('搜索关键词，不传则列出全部非 superseded 记录'),
     owner_id: z.string().optional().describe('限定用户/Agent'),
     track: z.enum(['user', 'agent']).optional().describe('限定分轨'),
     category: z.enum(['persistent', 'session', 'archived']).optional().describe('限定分类'),
+    group_key: z.string().optional().describe('限定分组键'),
     include_expired: z.boolean().optional().default(false).describe('是否包含过期记忆'),
-    limit: z.number().optional().default(5).describe('返回条数'),
+    limit: z.number().optional().default(20).describe('返回条数'),
   },
 })
 export class SearchMemoryTool implements IMcpTool {
   async execute(args: {
-    query: string;
+    query?: string;
     owner_id?: string;
     track?: string;
     category?: string;
+    group_key?: string;
     include_expired?: boolean;
     limit?: number;
   }): Promise<{ content: { type: string; text: string }[]; isError?: boolean }> {
@@ -28,6 +30,7 @@ export class SearchMemoryTool implements IMcpTool {
         owner_id: args.owner_id,
         track: args.track as Track | undefined,
         category: args.category as Category | undefined,
+        group_key: args.group_key,
         include_expired: args.include_expired,
         limit: args.limit,
       });

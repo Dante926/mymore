@@ -1,0 +1,9 @@
+{
+  "name": "mymore",
+  "version": "1.0.0",
+  "description": "本地优先的 AI Agent 记忆系统 — 自动保存和注入记忆，所有项目全局生效",
+  "author": {
+    "name": "mymore"
+  },
+  "keywords": ["memory", "context", "recall", "persistence", "local", "MCP"]
+}

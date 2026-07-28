@@ -19,7 +19,7 @@ describe('Consolidator', () => {
     storage = new MemoryStorage(join(tmpDir, 'con.db'));
     const md = new MarkdownHandler(join(tmpDir, 'memory'));
     cascade = new CascadeSync(storage, md);
-    consolidator = new Consolidator(storage, cascade);
+    consolidator = new Consolidator(storage, cascade, md);
   });
 
   afterAll(() => {

@@ -3,7 +3,7 @@
 /**
  * mymore — UserPromptSubmit Hook
  *
- * Searches FTS5 for memories relevant to the user's prompt and injects
+ * Searches @mymore/core for memories relevant to the user's prompt and injects
  * <relevant-memories> into Claude's context.
  *
  * Hook protocol: reads JSON from stdin, writes JSON to stdout.
@@ -13,9 +13,8 @@
 process.on('uncaughtException', () => process.exit(0));
 process.on('unhandledRejection', () => process.exit(0));
 
-import { existsSync } from 'fs';
 import { debug, setDebugPrefix } from './utils/debug.js';
-import { getGroupId, getDbPath, openDb } from './utils/config.js';
+import { getGroupId, createStorage } from './utils/config.js';
 
 setDebugPrefix('inject');
 
@@ -32,46 +31,6 @@ function countWords(text) {
   const nonCjkText = trimmed.replace(cjkRegex, ' ').trim();
   const wordCount = nonCjkText ? nonCjkText.split(/\s+/).filter(w => w.length > 0).length : 0;
   return cjkCount + wordCount;
-}
-
-function searchMemories(db, query, groupId, limit) {
-  const hasCJK = /[一-鿿㐀-䶿぀-ゟ゠-ヿ가-힯]/.test(query);
-  const useLike = query.length <= 2 && hasCJK;
-
-  if (useLike) {
-    return db.prepare(`
-      SELECT m.id, f.content, m.category, m.track, m.owner_id, m.frozen,
-             m.created_at, m.valid_until, m.superseded_by, m.access_count, 1.0 AS score
-      FROM memory_fts f
-      JOIN memory_meta m ON f.rowid = m.fts_rowid
-      WHERE m.group_key = ? AND m.superseded_by IS NULL AND f.content LIKE ?
-      ORDER BY m.frozen DESC, m.access_count DESC LIMIT ?
-    `).all(groupId, `%${query}%`, limit);
-  }
-
-  // Try FTS5 MATCH first
-  const results = db.prepare(`
-    SELECT m.id, f.content, m.category, m.track, m.owner_id, m.frozen,
-           m.created_at, m.valid_until, m.superseded_by, m.access_count, rank AS score
-    FROM memory_fts f
-    JOIN memory_meta m ON f.rowid = m.fts_rowid
-    WHERE m.group_key = ? AND m.superseded_by IS NULL AND memory_fts MATCH ?
-    ORDER BY m.frozen DESC, rank LIMIT ?
-  `).all(groupId, query, limit);
-
-  // Fallback to LIKE for CJK queries
-  if (results.length === 0 && hasCJK) {
-    return db.prepare(`
-      SELECT m.id, f.content, m.category, m.track, m.owner_id, m.frozen,
-             m.created_at, m.valid_until, m.superseded_by, m.access_count, 1.0 AS score
-      FROM memory_fts f
-      JOIN memory_meta m ON f.rowid = m.fts_rowid
-      WHERE m.group_key = ? AND m.superseded_by IS NULL AND f.content LIKE ?
-      ORDER BY m.created_at DESC LIMIT ?
-    `).all(groupId, `%${query}%`, limit);
-  }
-
-  return results;
 }
 
 function buildDisplayMessage(memories) {
@@ -126,28 +85,22 @@ async function main() {
       process.exit(0);
     }
 
-    const dbPath = getDbPath();
-    if (!existsSync(dbPath)) {
-      debug('skipped: no db');
-      process.exit(0);
-    }
-
-    const db = openDb();
-
     let memories = [];
     try {
-      const results = searchMemories(db, prompt, groupId, MAX_MEMORIES);
+      const storage = createStorage();
+      const results = storage.search(prompt, {
+        group_key: groupId,
+        limit: MAX_MEMORIES,
+      });
       memories = results;
       debug('search results:', memories.length);
     } catch (e) {
       debug('search error:', e.message);
-      db.close();
       process.exit(0);
     }
 
     if (memories.length === 0) {
       debug('no relevant memories');
-      db.close();
       process.exit(0);
     }
 
@@ -164,7 +117,6 @@ async function main() {
 
     debug('output:', { memories: memories.length });
     process.stdout.write(JSON.stringify(output));
-    db.close();
     process.exit(0);
   } catch (e) {
     debug('error:', e.message);

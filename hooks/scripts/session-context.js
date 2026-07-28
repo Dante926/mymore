@@ -15,7 +15,7 @@ process.on('unhandledRejection', () => process.exit(0));
 
 import { readFileSync, existsSync } from 'fs';
 import { debug, setDebugPrefix } from './utils/debug.js';
-import { getGroupId, getDbPath, getSessionFilePath, openDb } from './utils/config.js';
+import { getGroupId, getDbPath, getSessionFilePath, createStorage } from './utils/config.js';
 
 setDebugPrefix('session-start');
 
@@ -58,16 +58,16 @@ async function main() {
 
     let recentMemories = [];
     try {
-      const db = openDb();
-      const rows = db.prepare(`
-        SELECT f.content, m.created_at, m.id, m.category, m.group_key
-        FROM memory_fts f
-        JOIN memory_meta m ON f.rowid = m.fts_rowid
-        WHERE m.group_key = ? AND m.superseded_by IS NULL AND m.category IN ('persistent', 'session')
-        ORDER BY m.created_at DESC LIMIT ?
-      `).all(groupId, RECENT_COUNT);
-      recentMemories = rows;
-      db.close();
+      const storage = createStorage();
+      const results = storage.search(null, {
+        group_key: groupId,
+        limit: 100,
+      });
+      // Filter to persistent + session, sort by recency, take top RECENT_COUNT
+      recentMemories = results
+        .filter(m => m.category === 'persistent' || m.category === 'session')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, RECENT_COUNT);
       debug('recent memories:', recentMemories.length);
     } catch (e) {
       debug('db query error:', e.message);

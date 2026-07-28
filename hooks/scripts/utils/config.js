@@ -4,13 +4,13 @@
  * mymore Hooks — Shared Configuration
  *
  * Provides root dir resolution, group_id generation, and database access.
- * Self-contained — no dependency on @mymore/core.
+ * Uses @mymore/core for all database operations — no direct SQL.
  */
 
 import { join, resolve } from 'path';
 import { homedir } from 'os';
-import { existsSync, mkdirSync } from 'fs';
-import Database from 'better-sqlite3';
+import { mkdirSync, existsSync } from 'fs';
+import { MemoryStorage, MarkdownHandler, CascadeSync, Consolidator } from '@mymore/core';
 
 const MYMORE_ROOT = process.env.MYMORE_ROOT || join(homedir(), '.mymore');
 
@@ -41,48 +41,23 @@ export function getGroupId(cwd) {
 }
 
 /**
- * Open SQLite DB with Mymore's schema.
- * Creates .index/ directory and initializes tables if needed.
+ * Create a MemoryStorage instance (ensures DB and schema exist).
  */
-export function openDb() {
-  mkdirSync(join(MYMORE_ROOT, '.index'), { recursive: true });
-  const db = new Database(getDbPath());
-  db.pragma('journal_mode = WAL');
-  // Ensure tables exist
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-        content,
-        tokenize='trigram'
-    );
-    CREATE TABLE IF NOT EXISTS memory_meta (
-        id              TEXT PRIMARY KEY,
-        fts_rowid       INTEGER UNIQUE,
-        track           TEXT NOT NULL,
-        owner_id        TEXT NOT NULL,
-        category        TEXT NOT NULL DEFAULT 'persistent',
-        md_path         TEXT NOT NULL,
-        frozen          INTEGER DEFAULT 0,
-        created_at      TEXT NOT NULL,
-        valid_until     TEXT,
-        superseded_by   TEXT,
-        session_id      TEXT,
-        parent_id       TEXT,
-        group_key       TEXT,
-        content_sha256  TEXT NOT NULL,
-        access_count    INTEGER DEFAULT 0,
-        last_accessed_at TEXT,
-        FOREIGN KEY (superseded_by) REFERENCES memory_meta(id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_memory_track_owner ON memory_meta(track, owner_id);
-    CREATE INDEX IF NOT EXISTS idx_memory_category ON memory_meta(category);
-    CREATE INDEX IF NOT EXISTS idx_memory_frozen ON memory_meta(frozen);
-    CREATE INDEX IF NOT EXISTS idx_memory_valid ON memory_meta(valid_until);
-  `);
-  try {
-    db.exec(`ALTER TABLE memory_meta ADD COLUMN group_key TEXT`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_memory_group_key ON memory_meta(group_key)`);
-  } catch { /* already exists */ }
-  return db;
+export function createStorage() {
+  if (!existsSync(join(MYMORE_ROOT, '.index'))) {
+    mkdirSync(join(MYMORE_ROOT, '.index'), { recursive: true });
+  }
+  return new MemoryStorage(getDbPath());
+}
+
+/**
+ * Create a Consolidator instance for cleanup/maintenance.
+ */
+export function createConsolidator() {
+  const storage = createStorage();
+  const md = new MarkdownHandler(getMemoryDir());
+  const cascade = new CascadeSync(storage, md);
+  return new Consolidator(storage, cascade, md);
 }
 
 /**
@@ -91,4 +66,3 @@ export function openDb() {
 export function ensureDataDir() {
   mkdirSync(MYMORE_ROOT, { recursive: true });
 }
-

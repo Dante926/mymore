@@ -10,8 +10,11 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY package.json ./
 COPY apps/mcp-server/package.json ./apps/mcp-server/
 COPY packages/core/package.json ./packages/core/
-COPY packages/core/pnpm-lock.yaml ./packages/core/
-RUN pnpm install
+COPY hooks/package.json ./hooks/
+RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+# Rebuild native addons for Docker platform (esbuild, better-sqlite3)
+RUN pnpm rebuild
 
 # Source + build
 COPY . .

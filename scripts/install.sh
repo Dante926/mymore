@@ -102,9 +102,12 @@ fi
 # ── 注册 Claude Code 插件 ──
 step "注册 Claude Code 插件"
 
-# 检查是否已注册
+MARKETPLACE_NAME="mymore"
+PLUGIN_NAME="mymore@mymore"
+
+# 检查是否已安装
 ALREADY_INSTALLED=false
-if claude plugin list 2>/dev/null | grep -q "mymore"; then
+if claude plugin list 2>/dev/null | grep -q "^${MARKETPLACE_NAME}"; then
   log "mymore 插件已注册"
   ALREADY_INSTALLED=true
 fi
@@ -112,25 +115,30 @@ fi
 # 先移除旧注册，避免冲突
 if $ALREADY_INSTALLED; then
   warn "正在重新注册..."
-  claude plugin remove mymore 2>/dev/null || true
-  claude plugin uninstall mymore@mymore 2>/dev/null || true
+  claude plugin uninstall "${PLUGIN_NAME}" 2>/dev/null || true
 fi
+claude plugin marketplace remove "${MARKETPLACE_NAME}" 2>/dev/null || true
 
-# 注册插件（--scope user = 全局生效）
-echo "  注册中..."
-PLUGIN_ADD_OUTPUT=$(claude plugin add "$PROJECT_DIR" --scope user 2>&1) || {
-  err "插件注册失败"
-  echo "  $PLUGIN_ADD_OUTPUT"
-  exit 1
-}
-log "插件已添加 (scope: user)"
+# 1. 添加本地路径为 marketplace
+echo "  添加 marketplace..."
+claude plugin marketplace add "$PROJECT_DIR" 2>&1 | tail -1
+log "marketplace 已添加"
 
-PLUGIN_INSTALL_OUTPUT=$(claude plugin install mymore@mymore --scope user 2>&1) || {
-  err "插件安装失败"
-  echo "  $PLUGIN_INSTALL_OUTPUT"
-  exit 1
+# 2. 从 marketplace 安装插件（--scope user = 全局生效）
+echo "  安装插件（全局）..."
+claude plugin install "${PLUGIN_NAME}" --scope user 2>&1 | tail -1 || {
+  err "插件安装失败，重试中..."
+  # 有时 market 索引未刷新，等一秒重试
+  sleep 1
+  claude plugin install "${PLUGIN_NAME}" --scope user 2>&1 | tail -1 || {
+    err "插件安装失败，请手动执行:"
+    echo "    claude plugin marketplace add $PROJECT_DIR"
+    echo "    claude plugin install ${PLUGIN_NAME} --scope user"
+    exit 1
+  }
 }
 log "插件已安装 (scope: user)"
+fi
 
 # 安装 hook 依赖（better-sqlite3 等原生模块）
 step "安装依赖"
@@ -148,7 +156,7 @@ docker ps --filter "name=mymore" --format "table {{.Names}}\t{{.Status}}\t{{.Por
 echo ""
 
 # 验证插件
-if claude plugin list 2>/dev/null | grep -q "mymore"; then
+if claude plugin list 2>/dev/null | grep -q "^${MARKETPLACE_NAME}"; then
   log "插件状态正常"
 else
   err "插件未正确注册，请检查"
@@ -156,7 +164,7 @@ else
 fi
 
 # 验证 Hook 注册
-HOOK_COUNT=$(claude plugin list 2>/dev/null | grep -c "hook" || true)
+HOOK_COUNT=$(claude plugin list 2>/dev/null | grep -c "hook" )
 log "插件 hooks 已就绪（共 4 个: SessionStart / UserPromptSubmit / Stop / SessionEnd）"
 
 # ── 完成 ──

@@ -69,14 +69,22 @@ export class CascadeSync {
       const entries = this.md.readGroupEntries(groupKey);
       for (const entry of entries) {
         const existing = this.storage.getById(entry.id);
-        if (existing && existing.md_path === gf.path) {
+        if (existing) {
+          // Update md_path if it changed
+          if (existing.md_path !== gf.path) {
+            this.storage.updateMdPath(entry.id, gf.path);
+          }
           skipped++;
           continue;
         }
-        // Add to FTS5 if not yet indexed
-        this.storage.add(entry);
-        this.storage.updateMdPath(entry.id, gf.path);
-        synced++;
+        try {
+          this.storage.add(entry);
+          this.storage.updateMdPath(entry.id, gf.path);
+          synced++;
+        } catch {
+          // Entry already exists (race condition or duplicate)
+          skipped++;
+        }
       }
     }
 

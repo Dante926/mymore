@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCHEMA_SQL } from '../src/models.js';
+import { SCHEMA_SQL, MIGRATION_SQL } from '../src/models.js';
 
 describe('models', () => {
   it('SCHEMA_SQL should contain all expected tables', () => {
@@ -13,5 +13,17 @@ describe('models', () => {
     expect(SCHEMA_SQL).toContain('idx_memory_category');
     expect(SCHEMA_SQL).toContain('idx_memory_frozen');
     expect(SCHEMA_SQL).toContain('idx_memory_valid');
+  });
+
+  it('SCHEMA_SQL should include the structured columns', () => {
+    for (const col of ['type', 'priority', 'scene_name', 'version', 'source_message_ids', 'team', 'agent']) {
+      expect(SCHEMA_SQL).toContain(col);
+    }
+  });
+
+  it('MIGRATION_SQL should add the structured columns', () => {
+    for (const col of ['type', 'priority', 'scene_name', 'version', 'source_message_ids', 'team', 'agent']) {
+      expect(MIGRATION_SQL).toContain(`ADD COLUMN ${col}`);
+    }
   });
 });

@@ -18,10 +18,15 @@ export class MemoryStorage {
   }
 
   private runMigration(): void {
-    try {
-      this.db.exec(MIGRATION_SQL);
-    } catch {
-      // column already exists, ignore
+    // Per-statement try/catch: already-added columns must not block the remaining ALTERs
+    for (const stmt of MIGRATION_SQL.split(';')) {
+      const sql = stmt.trim();
+      if (!sql) continue;
+      try {
+        this.db.exec(sql);
+      } catch {
+        // column already exists, ignore
+      }
     }
   }
 
@@ -33,8 +38,9 @@ export class MemoryStorage {
     );
     const insertMeta = this.db.prepare(`
       INSERT INTO memory_meta (id, fts_rowid, track, owner_id, category, md_path,
-        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256,
+        type, priority, scene_name, version, source_message_ids, team, agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const addTx = this.db.transaction(() => {
@@ -47,6 +53,9 @@ export class MemoryStorage {
         entry.valid_until ?? null, entry.superseded_by ?? null,
         entry.session_id ?? null, entry.parent_id ?? null,
         entry.group_key ?? null, sha,
+        entry.type ?? null, entry.priority ?? null, entry.scene_name ?? null,
+        entry.version ?? null, entry.source_message_ids ?? null,
+        entry.team ?? null, entry.agent ?? null,
       );
     });
 
@@ -391,6 +400,13 @@ export class MemoryStorage {
       content_sha256: row.content_sha256 as string,
       access_count: row.access_count as number,
       last_accessed_at: (row.last_accessed_at as string) ?? null,
+      type: (row.type as string) ?? null,
+      priority: (row.priority as number) ?? null,
+      scene_name: (row.scene_name as string) ?? null,
+      version: (row.version as number) ?? null,
+      source_message_ids: (row.source_message_ids as string) ?? null,
+      team: (row.team as string) ?? null,
+      agent: (row.agent as string) ?? null,
     };
   }
 }

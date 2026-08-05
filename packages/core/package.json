@@ -38,6 +38,7 @@
   "dependencies": {
     "better-sqlite3": "13.0.1",
     "gray-matter": "^4.0.3",
+    "sqlite-vec": "0.1.9",
     "uuid": "^11.1.0",
     "zod": "^4.4.3"
   },

@@ -24,13 +24,22 @@
     "test:watch": "vitest"
   },
   "father": {
-    "esm": { "input": "src", "output": "esm", "platform": "browser" },
-    "cjs": { "input": "src", "output": "cjs", "platform": "node" }
+    "esm": {
+      "input": "src",
+      "output": "esm",
+      "platform": "browser"
+    },
+    "cjs": {
+      "input": "src",
+      "output": "cjs",
+      "platform": "node"
+    }
   },
   "dependencies": {
     "better-sqlite3": "13.0.1",
     "gray-matter": "^4.0.3",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

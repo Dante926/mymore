@@ -1,14 +1,10 @@
 {
   "mcpServers": {
     "mymore": {
-      "command": "docker",
-      "args": [
-        "exec", "-i",
-        "mymore-mcp",
-        "node", "apps/mcp-server/dist/bootstrap.js"
-      ],
+      "command": "node",
+      "args": ["/Users/admin/Desktop/dante926/mymore/apps/mcp-server/dist/bootstrap.js"],
       "env": {
-        "MYMORE_ROOT": "/root/.mymore"
+        "MYMORE_ROOT": "/Users/admin/.mymore"
       }
     }
   }

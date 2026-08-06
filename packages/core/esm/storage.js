@@ -1,17 +1,17 @@
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
-function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
 function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread(); }
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
 function _iterableToArray(iter) { if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter); }
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) return _arrayLikeToArray(arr); }
-function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor); } }
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
@@ -36,10 +36,24 @@ export var MemoryStorage = /*#__PURE__*/function () {
   _createClass(MemoryStorage, [{
     key: "runMigration",
     value: function runMigration() {
+      // Per-statement try/catch: already-added columns must not block the remaining ALTERs
+      var _iterator = _createForOfIteratorHelper(MIGRATION_SQL.split(';')),
+        _step;
       try {
-        this.db.exec(MIGRATION_SQL);
-      } catch (_unused) {
-        // column already exists, ignore
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var stmt = _step.value;
+          var sql = stmt.trim();
+          if (!sql) continue;
+          try {
+            this.db.exec(sql);
+          } catch (_unused) {
+            // column already exists, ignore
+          }
+        }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
       }
     }
   }, {
@@ -47,14 +61,14 @@ export var MemoryStorage = /*#__PURE__*/function () {
     value: function add(entry) {
       var sha = computeSha256(entry.content, entry.category, entry.frozen);
       var insertFts = this.db.prepare('INSERT INTO memory_fts (content) VALUES (?)');
-      var insertMeta = this.db.prepare("\n      INSERT INTO memory_meta (id, fts_rowid, track, owner_id, category, md_path,\n        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256)\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ");
+      var insertMeta = this.db.prepare("\n      INSERT INTO memory_meta (id, fts_rowid, track, owner_id, category, md_path,\n        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256,\n        type, priority, scene_name, version, source_message_ids, team, agent)\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ");
       var addTx = this.db.transaction(function () {
-        var _entry$valid_until, _entry$superseded_by, _entry$session_id, _entry$parent_id, _entry$group_key;
+        var _entry$valid_until, _entry$superseded_by, _entry$session_id, _entry$parent_id, _entry$group_key, _entry$type, _entry$priority, _entry$scene_name, _entry$version, _entry$source_message, _entry$team, _entry$agent;
         var result = insertFts.run(entry.content);
         var ftsRowid = result.lastInsertRowid;
         insertMeta.run(entry.id, ftsRowid, entry.track, entry.owner_id, entry.category, '',
         // md_path set later
-        entry.frozen ? 1 : 0, entry.created_at, (_entry$valid_until = entry.valid_until) !== null && _entry$valid_until !== void 0 ? _entry$valid_until : null, (_entry$superseded_by = entry.superseded_by) !== null && _entry$superseded_by !== void 0 ? _entry$superseded_by : null, (_entry$session_id = entry.session_id) !== null && _entry$session_id !== void 0 ? _entry$session_id : null, (_entry$parent_id = entry.parent_id) !== null && _entry$parent_id !== void 0 ? _entry$parent_id : null, (_entry$group_key = entry.group_key) !== null && _entry$group_key !== void 0 ? _entry$group_key : null, sha);
+        entry.frozen ? 1 : 0, entry.created_at, (_entry$valid_until = entry.valid_until) !== null && _entry$valid_until !== void 0 ? _entry$valid_until : null, (_entry$superseded_by = entry.superseded_by) !== null && _entry$superseded_by !== void 0 ? _entry$superseded_by : null, (_entry$session_id = entry.session_id) !== null && _entry$session_id !== void 0 ? _entry$session_id : null, (_entry$parent_id = entry.parent_id) !== null && _entry$parent_id !== void 0 ? _entry$parent_id : null, (_entry$group_key = entry.group_key) !== null && _entry$group_key !== void 0 ? _entry$group_key : null, sha, (_entry$type = entry.type) !== null && _entry$type !== void 0 ? _entry$type : null, (_entry$priority = entry.priority) !== null && _entry$priority !== void 0 ? _entry$priority : null, (_entry$scene_name = entry.scene_name) !== null && _entry$scene_name !== void 0 ? _entry$scene_name : null, (_entry$version = entry.version) !== null && _entry$version !== void 0 ? _entry$version : null, (_entry$source_message = entry.source_message_ids) !== null && _entry$source_message !== void 0 ? _entry$source_message : null, (_entry$team = entry.team) !== null && _entry$team !== void 0 ? _entry$team : null, (_entry$agent = entry.agent) !== null && _entry$agent !== void 0 ? _entry$agent : null);
       });
       addTx();
       return this.getById(entry.id);
@@ -229,6 +243,25 @@ export var MemoryStorage = /*#__PURE__*/function () {
       params.push(id);
       (_this$db$prepare3 = this.db.prepare("UPDATE memory_meta SET ".concat(sets.join(', '), " WHERE id = ?"))).run.apply(_this$db$prepare3, params);
     }
+
+    /**
+     * 刷新一条记忆的内容：更新 memory_fts 的 content + 按当前 category/frozen 重算 content_sha256。
+     * 维护不变量 content_sha256 = computeSha256(content, category, frozen)（与 JSONL 真源一致）。
+     * 注意：应在 updateRow（可能改 category/frozen）之后调用，否则 sha 会基于旧 category/frozen 计算。
+     */
+  }, {
+    key: "updateContent",
+    value: function updateContent(id, newContent) {
+      var _this2 = this;
+      var row = this.getById(id);
+      if (!row) return;
+      var sha = computeSha256(newContent, row.category, row.frozen === 1);
+      var updateTx = this.db.transaction(function () {
+        _this2.db.prepare('UPDATE memory_fts SET content = ? WHERE rowid = (SELECT fts_rowid FROM memory_meta WHERE id = ?)').run(newContent, id);
+        _this2.db.prepare('UPDATE memory_meta SET content_sha256 = ? WHERE id = ?').run(sha, id);
+      });
+      updateTx();
+    }
   }, {
     key: "markSuperseded",
     value: function markSuperseded(id, supersededBy) {
@@ -246,68 +279,38 @@ export var MemoryStorage = /*#__PURE__*/function () {
       var rows = this.db.prepare("\n      SELECT f.content FROM memory_fts f\n      JOIN memory_meta m ON f.rowid = m.fts_rowid\n      WHERE m.frozen = 1 AND m.owner_id = ? AND m.superseded_by IS NULL\n      ORDER BY m.access_count DESC\n    ").all(ownerId);
       var parts = [];
       var tokens = 0;
-      var _iterator = _createForOfIteratorHelper(rows),
-        _step;
+      var _iterator2 = _createForOfIteratorHelper(rows),
+        _step2;
       try {
-        for (_iterator.s(); !(_step = _iterator.n()).done;) {
-          var row = _step.value;
+        for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+          var row = _step2.value;
           var approxTokens = Math.ceil(row.content.length / 2);
           if (tokens + approxTokens > maxTokens) break;
           parts.push(row.content);
           tokens += approxTokens;
         }
       } catch (err) {
-        _iterator.e(err);
+        _iterator2.e(err);
       } finally {
-        _iterator.f();
+        _iterator2.f();
       }
       return parts.join('\n');
     }
   }, {
     key: "listExpired",
     value: function listExpired() {
-      var _this2 = this;
+      var _this3 = this;
       var rows = this.db.prepare("\n      SELECT * FROM memory_meta\n      WHERE valid_until IS NOT NULL AND valid_until < datetime('now') AND superseded_by IS NULL\n    ").all();
       return rows.map(function (r) {
-        return _this2.rowToMemoryRow(r);
+        return _this3.rowToMemoryRow(r);
       });
     }
   }, {
     key: "purgeArchived",
     value: function purgeArchived() {
-      var _this3 = this;
+      var _this4 = this;
       var retentionDays = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 30;
       var rows = this.db.prepare("\n      SELECT id, md_path, fts_rowid FROM memory_meta\n      WHERE category = 'archived' AND created_at < datetime('now', ?)\n    ").all("-".concat(retentionDays, " days"));
-      if (rows.length === 0) return [];
-      var purgeTx = this.db.transaction(function () {
-        var _iterator2 = _createForOfIteratorHelper(rows),
-          _step2;
-        try {
-          for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-            var row = _step2.value;
-            _this3.db.prepare('DELETE FROM memory_fts WHERE rowid = ?').run(row.fts_rowid);
-            _this3.db.prepare('DELETE FROM memory_meta WHERE id = ?').run(row.id);
-          }
-        } catch (err) {
-          _iterator2.e(err);
-        } finally {
-          _iterator2.f();
-        }
-      });
-      purgeTx();
-      return rows.map(function (r) {
-        return {
-          id: r.id,
-          md_path: r.md_path
-        };
-      });
-    }
-  }, {
-    key: "purgeSuperseded",
-    value: function purgeSuperseded() {
-      var _this4 = this;
-      var days = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 7;
-      var rows = this.db.prepare("\n      SELECT id, md_path, fts_rowid FROM memory_meta\n      WHERE superseded_by IS NOT NULL AND created_at < datetime('now', ?)\n    ").all("-".concat(days, " days"));
       if (rows.length === 0) return [];
       var purgeTx = this.db.transaction(function () {
         var _iterator3 = _createForOfIteratorHelper(rows),
@@ -322,6 +325,36 @@ export var MemoryStorage = /*#__PURE__*/function () {
           _iterator3.e(err);
         } finally {
           _iterator3.f();
+        }
+      });
+      purgeTx();
+      return rows.map(function (r) {
+        return {
+          id: r.id,
+          md_path: r.md_path
+        };
+      });
+    }
+  }, {
+    key: "purgeSuperseded",
+    value: function purgeSuperseded() {
+      var _this5 = this;
+      var days = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 7;
+      var rows = this.db.prepare("\n      SELECT id, md_path, fts_rowid FROM memory_meta\n      WHERE superseded_by IS NOT NULL AND created_at < datetime('now', ?)\n    ").all("-".concat(days, " days"));
+      if (rows.length === 0) return [];
+      var purgeTx = this.db.transaction(function () {
+        var _iterator4 = _createForOfIteratorHelper(rows),
+          _step4;
+        try {
+          for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+            var row = _step4.value;
+            _this5.db.prepare('DELETE FROM memory_fts WHERE rowid = ?').run(row.fts_rowid);
+            _this5.db.prepare('DELETE FROM memory_meta WHERE id = ?').run(row.id);
+          }
+        } catch (err) {
+          _iterator4.e(err);
+        } finally {
+          _iterator4.f();
         }
       });
       purgeTx();
@@ -352,19 +385,19 @@ export var MemoryStorage = /*#__PURE__*/function () {
     value: function listByGroupKey(ownerId) {
       var rows = this.db.prepare("\n      SELECT m.*, f.content FROM memory_meta m\n      JOIN memory_fts f ON f.rowid = m.fts_rowid\n      WHERE m.owner_id = ? AND m.group_key IS NOT NULL AND m.superseded_by IS NULL\n      ORDER BY m.group_key, m.created_at\n    ").all(ownerId);
       var grouped = {};
-      var _iterator4 = _createForOfIteratorHelper(rows),
-        _step4;
+      var _iterator5 = _createForOfIteratorHelper(rows),
+        _step5;
       try {
-        for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
-          var row = _step4.value;
+        for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+          var row = _step5.value;
           var gk = row.group_key;
           if (!grouped[gk]) grouped[gk] = [];
           grouped[gk].push(row);
         }
       } catch (err) {
-        _iterator4.e(err);
+        _iterator5.e(err);
       } finally {
-        _iterator4.f();
+        _iterator5.f();
       }
       return grouped;
     }
@@ -376,7 +409,7 @@ export var MemoryStorage = /*#__PURE__*/function () {
   }, {
     key: "rowToMemoryRow",
     value: function rowToMemoryRow(row) {
-      var _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
+      var _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9, _ref10, _ref11, _ref12, _ref13, _ref14, _ref15;
       return {
         id: row.id,
         fts_rowid: row.fts_rowid,
@@ -393,7 +426,14 @@ export var MemoryStorage = /*#__PURE__*/function () {
         group_key: (_ref7 = row.group_key) !== null && _ref7 !== void 0 ? _ref7 : null,
         content_sha256: row.content_sha256,
         access_count: row.access_count,
-        last_accessed_at: (_ref8 = row.last_accessed_at) !== null && _ref8 !== void 0 ? _ref8 : null
+        last_accessed_at: (_ref8 = row.last_accessed_at) !== null && _ref8 !== void 0 ? _ref8 : null,
+        type: (_ref9 = row.type) !== null && _ref9 !== void 0 ? _ref9 : null,
+        priority: (_ref10 = row.priority) !== null && _ref10 !== void 0 ? _ref10 : null,
+        scene_name: (_ref11 = row.scene_name) !== null && _ref11 !== void 0 ? _ref11 : null,
+        version: (_ref12 = row.version) !== null && _ref12 !== void 0 ? _ref12 : null,
+        source_message_ids: (_ref13 = row.source_message_ids) !== null && _ref13 !== void 0 ? _ref13 : null,
+        team: (_ref14 = row.team) !== null && _ref14 !== void 0 ? _ref14 : null,
+        agent: (_ref15 = row.agent) !== null && _ref15 !== void 0 ? _ref15 : null
       };
     }
   }]);

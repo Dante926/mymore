@@ -46,6 +46,13 @@ CREATE TABLE IF NOT EXISTS memory_meta (
     content_sha256  TEXT NOT NULL,
     access_count    INTEGER DEFAULT 0,
     last_accessed_at TEXT,
+    type            TEXT,
+    priority        INTEGER,
+    scene_name      TEXT,
+    version         INTEGER,
+    source_message_ids TEXT,
+    team            TEXT,
+    agent           TEXT,
     FOREIGN KEY (superseded_by) REFERENCES memory_meta(id)
 );
 
@@ -57,6 +64,13 @@ CREATE INDEX IF NOT EXISTS idx_memory_valid ON memory_meta(valid_until);
 var MIGRATION_SQL = `
 ALTER TABLE memory_meta ADD COLUMN group_key TEXT;
 CREATE INDEX IF NOT EXISTS idx_memory_group_key ON memory_meta(group_key);
+ALTER TABLE memory_meta ADD COLUMN type TEXT;
+ALTER TABLE memory_meta ADD COLUMN priority INTEGER;
+ALTER TABLE memory_meta ADD COLUMN scene_name TEXT;
+ALTER TABLE memory_meta ADD COLUMN version INTEGER;
+ALTER TABLE memory_meta ADD COLUMN source_message_ids TEXT;
+ALTER TABLE memory_meta ADD COLUMN team TEXT;
+ALTER TABLE memory_meta ADD COLUMN agent TEXT;
 `;
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

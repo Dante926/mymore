@@ -14,6 +14,12 @@ export declare class MemoryStorage {
     getContentById(id: string): string | null;
     updateMdPath(id: string, mdPath: string): void;
     updateRow(id: string, changes: Partial<MemoryRow>): void;
+    /**
+     * 刷新一条记忆的内容：更新 memory_fts 的 content + 按当前 category/frozen 重算 content_sha256。
+     * 维护不变量 content_sha256 = computeSha256(content, category, frozen)（与 JSONL 真源一致）。
+     * 注意：应在 updateRow（可能改 category/frozen）之后调用，否则 sha 会基于旧 category/frozen 计算。
+     */
+    updateContent(id: string, newContent: string): void;
     markSuperseded(id: string, supersededBy: string): void;
     incrementAccess(id: string): void;
     getFrozenSnapshot(ownerId: string, maxTokens?: number): string;

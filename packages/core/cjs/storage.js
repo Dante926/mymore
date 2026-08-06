@@ -47,9 +47,14 @@ var MemoryStorage = class {
     this.runMigration();
   }
   runMigration() {
-    try {
-      this.db.exec(import_models.MIGRATION_SQL);
-    } catch {
+    for (const stmt of import_models.MIGRATION_SQL.split(";")) {
+      const sql = stmt.trim();
+      if (!sql)
+        continue;
+      try {
+        this.db.exec(sql);
+      } catch {
+      }
     }
   }
   add(entry) {
@@ -59,8 +64,9 @@ var MemoryStorage = class {
     );
     const insertMeta = this.db.prepare(`
       INSERT INTO memory_meta (id, fts_rowid, track, owner_id, category, md_path,
-        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        frozen, created_at, valid_until, superseded_by, session_id, parent_id, group_key, content_sha256,
+        type, priority, scene_name, version, source_message_ids, team, agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const addTx = this.db.transaction(() => {
       const result = insertFts.run(entry.content);
@@ -80,7 +86,14 @@ var MemoryStorage = class {
         entry.session_id ?? null,
         entry.parent_id ?? null,
         entry.group_key ?? null,
-        sha
+        sha,
+        entry.type ?? null,
+        entry.priority ?? null,
+        entry.scene_name ?? null,
+        entry.version ?? null,
+        entry.source_message_ids ?? null,
+        entry.team ?? null,
+        entry.agent ?? null
       );
     });
     addTx();
@@ -265,6 +278,22 @@ var MemoryStorage = class {
     params.push(id);
     this.db.prepare(`UPDATE memory_meta SET ${sets.join(", ")} WHERE id = ?`).run(...params);
   }
+  /**
+   * 刷新一条记忆的内容：更新 memory_fts 的 content + 按当前 category/frozen 重算 content_sha256。
+   * 维护不变量 content_sha256 = computeSha256(content, category, frozen)（与 JSONL 真源一致）。
+   * 注意：应在 updateRow（可能改 category/frozen）之后调用，否则 sha 会基于旧 category/frozen 计算。
+   */
+  updateContent(id, newContent) {
+    const row = this.getById(id);
+    if (!row)
+      return;
+    const sha = computeSha256(newContent, row.category, row.frozen === 1);
+    const updateTx = this.db.transaction(() => {
+      this.db.prepare("UPDATE memory_fts SET content = ? WHERE rowid = (SELECT fts_rowid FROM memory_meta WHERE id = ?)").run(newContent, id);
+      this.db.prepare("UPDATE memory_meta SET content_sha256 = ? WHERE id = ?").run(sha, id);
+    });
+    updateTx();
+  }
   markSuperseded(id, supersededBy) {
     this.db.prepare(`
       UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0
@@ -385,7 +414,14 @@ var MemoryStorage = class {
       group_key: row.group_key ?? null,
       content_sha256: row.content_sha256,
       access_count: row.access_count,
-      last_accessed_at: row.last_accessed_at ?? null
+      last_accessed_at: row.last_accessed_at ?? null,
+      type: row.type ?? null,
+      priority: row.priority ?? null,
+      scene_name: row.scene_name ?? null,
+      version: row.version ?? null,
+      source_message_ids: row.source_message_ids ?? null,
+      team: row.team ?? null,
+      agent: row.agent ?? null
     };
   }
 };

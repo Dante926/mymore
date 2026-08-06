@@ -16,6 +16,13 @@ export interface MemoryEntry {
     frozen: boolean;
     access_count: number;
     last_accessed_at?: string;
+    type?: string;
+    priority?: number;
+    scene_name?: string;
+    version?: number;
+    source_message_ids?: string;
+    team?: string;
+    agent?: string;
 }
 export interface MemoryRow {
     id: string;
@@ -34,6 +41,13 @@ export interface MemoryRow {
     content_sha256: string;
     access_count: number;
     last_accessed_at: string | null;
+    type: string | null;
+    priority: number | null;
+    scene_name: string | null;
+    version: number | null;
+    source_message_ids: string | null;
+    team: string | null;
+    agent: string | null;
 }
 export interface SearchResult {
     id: string;
@@ -73,6 +87,6 @@ export interface FrozenSnapshotInput {
     owner_id: string;
     max_tokens?: number;
 }
-export declare const SCHEMA_SQL = "\nCREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(\n    content,\n    tokenize='trigram'\n);\n\nCREATE TABLE IF NOT EXISTS memory_meta (\n    id              TEXT PRIMARY KEY,\n    fts_rowid       INTEGER UNIQUE,\n    track           TEXT NOT NULL,\n    owner_id        TEXT NOT NULL,\n    category        TEXT NOT NULL DEFAULT 'persistent',\n    md_path         TEXT NOT NULL,\n    frozen          INTEGER DEFAULT 0,\n    created_at      TEXT NOT NULL,\n    valid_until     TEXT,\n    superseded_by   TEXT,\n    session_id      TEXT,\n    parent_id       TEXT,\n    group_key       TEXT,\n    content_sha256  TEXT NOT NULL,\n    access_count    INTEGER DEFAULT 0,\n    last_accessed_at TEXT,\n    FOREIGN KEY (superseded_by) REFERENCES memory_meta(id)\n);\n\nCREATE INDEX IF NOT EXISTS idx_memory_track_owner ON memory_meta(track, owner_id);\nCREATE INDEX IF NOT EXISTS idx_memory_category ON memory_meta(category);\nCREATE INDEX IF NOT EXISTS idx_memory_frozen ON memory_meta(frozen);\nCREATE INDEX IF NOT EXISTS idx_memory_valid ON memory_meta(valid_until);\n";
-export declare const MIGRATION_SQL = "\nALTER TABLE memory_meta ADD COLUMN group_key TEXT;\nCREATE INDEX IF NOT EXISTS idx_memory_group_key ON memory_meta(group_key);\n";
+export declare const SCHEMA_SQL = "\nCREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(\n    content,\n    tokenize='trigram'\n);\n\nCREATE TABLE IF NOT EXISTS memory_meta (\n    id              TEXT PRIMARY KEY,\n    fts_rowid       INTEGER UNIQUE,\n    track           TEXT NOT NULL,\n    owner_id        TEXT NOT NULL,\n    category        TEXT NOT NULL DEFAULT 'persistent',\n    md_path         TEXT NOT NULL,\n    frozen          INTEGER DEFAULT 0,\n    created_at      TEXT NOT NULL,\n    valid_until     TEXT,\n    superseded_by   TEXT,\n    session_id      TEXT,\n    parent_id       TEXT,\n    group_key       TEXT,\n    content_sha256  TEXT NOT NULL,\n    access_count    INTEGER DEFAULT 0,\n    last_accessed_at TEXT,\n    type            TEXT,\n    priority        INTEGER,\n    scene_name      TEXT,\n    version         INTEGER,\n    source_message_ids TEXT,\n    team            TEXT,\n    agent           TEXT,\n    FOREIGN KEY (superseded_by) REFERENCES memory_meta(id)\n);\n\nCREATE INDEX IF NOT EXISTS idx_memory_track_owner ON memory_meta(track, owner_id);\nCREATE INDEX IF NOT EXISTS idx_memory_category ON memory_meta(category);\nCREATE INDEX IF NOT EXISTS idx_memory_frozen ON memory_meta(frozen);\nCREATE INDEX IF NOT EXISTS idx_memory_valid ON memory_meta(valid_until);\n";
+export declare const MIGRATION_SQL = "\nALTER TABLE memory_meta ADD COLUMN group_key TEXT;\nCREATE INDEX IF NOT EXISTS idx_memory_group_key ON memory_meta(group_key);\nALTER TABLE memory_meta ADD COLUMN type TEXT;\nALTER TABLE memory_meta ADD COLUMN priority INTEGER;\nALTER TABLE memory_meta ADD COLUMN scene_name TEXT;\nALTER TABLE memory_meta ADD COLUMN version INTEGER;\nALTER TABLE memory_meta ADD COLUMN source_message_ids TEXT;\nALTER TABLE memory_meta ADD COLUMN team TEXT;\nALTER TABLE memory_meta ADD COLUMN agent TEXT;\n";
 //# sourceMappingURL=models.d.ts.map

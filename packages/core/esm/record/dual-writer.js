@@ -21,33 +21,36 @@ export var DualWriter = /*#__PURE__*/function () {
     value: function () {
       var _storeL = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(record) {
         var _record$team, _record$agent;
-        var _this$opts, storage, vector, embed, baseDir, team, agent, vec, existing;
+        var _this$opts, storage, vector, embed, baseDir, team, agent, teamName, agentName, vec, existing, category;
         return _regeneratorRuntime().wrap(function _callee$(_context) {
           while (1) switch (_context.prev = _context.next) {
             case 0:
-              _this$opts = this.opts, storage = _this$opts.storage, vector = _this$opts.vector, embed = _this$opts.embed, baseDir = _this$opts.baseDir, team = _this$opts.team, agent = _this$opts.agent;
-              appendL1Record(_objectSpread(_objectSpread({}, record), {}, {
-                team: (_record$team = record.team) !== null && _record$team !== void 0 ? _record$team : team,
-                agent: (_record$agent = record.agent) !== null && _record$agent !== void 0 ? _record$agent : agent
-              }), baseDir);
+              _this$opts = this.opts, storage = _this$opts.storage, vector = _this$opts.vector, embed = _this$opts.embed, baseDir = _this$opts.baseDir, team = _this$opts.team, agent = _this$opts.agent; // JSONL 与 meta 统一使用 record 自带的 team/agent，缺省回退构造参数
+              teamName = (_record$team = record.team) !== null && _record$team !== void 0 ? _record$team : team;
+              agentName = (_record$agent = record.agent) !== null && _record$agent !== void 0 ? _record$agent : agent; // 索引先行（embed + vector upsert + storage add/update），JSONL 真源最后写：
+              // embed 失败时真源不领先索引，重试不会产生重复 JSONL 行。
               if (record.version > 1) vector.remove(record.id);
-              _context.next = 5;
+              _context.next = 6;
               return embed.embed(record.content);
-            case 5:
+            case 6:
               vec = _context.sent;
               vector.upsert(record.id, vec);
+
               // memory_meta.id 是主键：新 id 走 add 插入，已存在（version 升级）走 updateRow 覆盖索引列
               existing = storage.getById(record.id);
               if (existing) {
+                // version-bump 只刷新存活的 persistent 记录；已被 deprecateL1/markSuperseded 归档的
+                // 不复活——保留其 category（archived），仅更新内容相关列。
+                category = existing.category === 'persistent' ? 'persistent' : 'archived';
                 storage.updateRow(record.id, {
                   type: record.type,
                   priority: record.priority,
                   scene_name: record.scene_name,
                   version: record.version,
                   source_message_ids: JSON.stringify(record.source_message_ids),
-                  team: team,
-                  agent: agent,
-                  category: 'persistent',
+                  team: teamName,
+                  agent: agentName,
+                  category: category,
                   frozen: record.priority >= 90 ? 1 : 0
                 });
                 // 刷新 FTS content + 重算 content_sha256（必须在 updateRow 之后，sha 依赖最终 category/frozen）
@@ -56,7 +59,7 @@ export var DualWriter = /*#__PURE__*/function () {
                 storage.add({
                   id: record.id,
                   track: 'user',
-                  owner_id: agent !== null && agent !== void 0 ? agent : 'default',
+                  owner_id: agentName !== null && agentName !== void 0 ? agentName : 'default',
                   category: 'persistent',
                   content: record.content,
                   created_at: record.created_at,
@@ -67,14 +70,20 @@ export var DualWriter = /*#__PURE__*/function () {
                   scene_name: record.scene_name,
                   version: record.version,
                   source_message_ids: JSON.stringify(record.source_message_ids),
-                  team: team,
-                  agent: agent
+                  team: teamName,
+                  agent: agentName
                 });
               }
+
+              // 真源最后写
+              appendL1Record(_objectSpread(_objectSpread({}, record), {}, {
+                team: teamName,
+                agent: agentName
+              }), baseDir);
               return _context.abrupt("return", {
                 id: record.id
               });
-            case 10:
+            case 12:
             case "end":
               return _context.stop();
           }
@@ -89,15 +98,22 @@ export var DualWriter = /*#__PURE__*/function () {
     key: "deprecateL1",
     value: function () {
       var _deprecateL = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(id) {
+        var row;
         return _regeneratorRuntime().wrap(function _callee2$(_context2) {
           while (1) switch (_context2.prev = _context2.next) {
             case 0:
-              this.opts.storage.updateRow(id, {
-                category: 'archived',
-                frozen: 0
-              });
+              row = this.opts.storage.getById(id);
+              if (row) {
+                this.opts.storage.updateRow(id, {
+                  category: 'archived',
+                  frozen: 0
+                });
+                // category/frozen 变更后重算 content_sha256，维持 computeSha256(content, category, frozen)
+                // 不变量，避免 getBySha256/CascadeSync.syncOne 把 archived 记录误判为 unchanged。
+                this.opts.storage.updateSha(id);
+              }
               this.opts.vector.remove(id);
-            case 2:
+            case 3:
             case "end":
               return _context2.stop();
           }

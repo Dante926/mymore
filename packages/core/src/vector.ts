@@ -1,8 +1,16 @@
 import Database from 'better-sqlite3';
 import { getLoadablePath } from 'sqlite-vec';
 
+export interface EmbeddingClientConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  /** 专用的 embedding 模型名；缺省回退到 model（chat 模型）。 */
+  embeddingModel?: string;
+}
+
 export class EmbeddingClient {
-  constructor(private cfg: { baseUrl: string; apiKey: string; model: string }) {}
+  constructor(private cfg: EmbeddingClientConfig) {}
 
   async embed(text: string): Promise<Float32Array> {
     const [vec] = await this.embedBatch([text]);
@@ -16,7 +24,7 @@ export class EmbeddingClient {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.cfg.apiKey}`,
       },
-      body: JSON.stringify({ model: this.cfg.model, input: texts }),
+      body: JSON.stringify({ model: this.cfg.embeddingModel ?? this.cfg.model, input: texts }),
     });
     if (!res.ok) {
       throw new Error(`Embedding request failed: ${res.status} ${res.statusText}`);

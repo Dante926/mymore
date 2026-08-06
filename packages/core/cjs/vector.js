@@ -50,7 +50,7 @@ var EmbeddingClient = class {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.cfg.apiKey}`
       },
-      body: JSON.stringify({ model: this.cfg.model, input: texts })
+      body: JSON.stringify({ model: this.cfg.embeddingModel ?? this.cfg.model, input: texts })
     });
     if (!res.ok) {
       throw new Error(`Embedding request failed: ${res.status} ${res.statusText}`);

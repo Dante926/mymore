@@ -262,6 +262,22 @@ export var MemoryStorage = /*#__PURE__*/function () {
       });
       updateTx();
     }
+
+    /**
+     * 按当前 FTS content + category/frozen 重算 content_sha256（不改动 FTS content）。
+     * 用于 deprecateL1/markSuperseded 这类 category/frozen 变更后维持不变量
+     * content_sha256 = computeSha256(content, category, frozen)。
+     */
+  }, {
+    key: "updateSha",
+    value: function updateSha(id) {
+      var _this$getContentById;
+      var row = this.getById(id);
+      if (!row) return;
+      var content = (_this$getContentById = this.getContentById(id)) !== null && _this$getContentById !== void 0 ? _this$getContentById : '';
+      var sha = computeSha256(content, row.category, row.frozen === 1);
+      this.db.prepare('UPDATE memory_meta SET content_sha256 = ? WHERE id = ?').run(sha, id);
+    }
   }, {
     key: "markSuperseded",
     value: function markSuperseded(id, supersededBy) {

@@ -51,6 +51,7 @@ export var EmbeddingClient = /*#__PURE__*/function () {
     key: "embedBatch",
     value: function () {
       var _embedBatch = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee2(texts) {
+        var _this$cfg$embeddingMo;
         var res, body;
         return _regeneratorRuntime().wrap(function _callee2$(_context2) {
           while (1) switch (_context2.prev = _context2.next) {
@@ -63,7 +64,7 @@ export var EmbeddingClient = /*#__PURE__*/function () {
                   Authorization: "Bearer ".concat(this.cfg.apiKey)
                 },
                 body: JSON.stringify({
-                  model: this.cfg.model,
+                  model: (_this$cfg$embeddingMo = this.cfg.embeddingModel) !== null && _this$cfg$embeddingMo !== void 0 ? _this$cfg$embeddingMo : this.cfg.model,
                   input: texts
                 })
               });

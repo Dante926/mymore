@@ -285,6 +285,19 @@ export class MemoryStorage {
     updateTx();
   }
 
+  /**
+   * 按当前 FTS content + category/frozen 重算 content_sha256（不改动 FTS content）。
+   * 用于 deprecateL1/markSuperseded 这类 category/frozen 变更后维持不变量
+   * content_sha256 = computeSha256(content, category, frozen)。
+   */
+  updateSha(id: string): void {
+    const row = this.getById(id);
+    if (!row) return;
+    const content = this.getContentById(id) ?? '';
+    const sha = computeSha256(content, row.category, row.frozen === 1);
+    this.db.prepare('UPDATE memory_meta SET content_sha256 = ? WHERE id = ?').run(sha, id);
+  }
+
   markSuperseded(id: string, supersededBy: string): void {
     this.db.prepare(`
       UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0

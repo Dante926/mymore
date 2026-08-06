@@ -29,22 +29,24 @@ var DualWriter = class {
   }
   async storeL1(record) {
     const { storage, vector, embed, baseDir, team, agent } = this.opts;
-    (0, import_l1_writer.appendL1Record)({ ...record, team: record.team ?? team, agent: record.agent ?? agent }, baseDir);
+    const teamName = record.team ?? team;
+    const agentName = record.agent ?? agent;
     if (record.version > 1)
       vector.remove(record.id);
     const vec = await embed.embed(record.content);
     vector.upsert(record.id, vec);
     const existing = storage.getById(record.id);
     if (existing) {
+      const category = existing.category === "persistent" ? "persistent" : "archived";
       storage.updateRow(record.id, {
         type: record.type,
         priority: record.priority,
         scene_name: record.scene_name,
         version: record.version,
         source_message_ids: JSON.stringify(record.source_message_ids),
-        team,
-        agent,
-        category: "persistent",
+        team: teamName,
+        agent: agentName,
+        category,
         frozen: record.priority >= 90 ? 1 : 0
       });
       storage.updateContent(record.id, record.content);
@@ -52,7 +54,7 @@ var DualWriter = class {
       storage.add({
         id: record.id,
         track: "user",
-        owner_id: agent ?? "default",
+        owner_id: agentName ?? "default",
         category: "persistent",
         content: record.content,
         created_at: record.created_at,
@@ -63,14 +65,19 @@ var DualWriter = class {
         scene_name: record.scene_name,
         version: record.version,
         source_message_ids: JSON.stringify(record.source_message_ids),
-        team,
-        agent
+        team: teamName,
+        agent: agentName
       });
     }
+    (0, import_l1_writer.appendL1Record)({ ...record, team: teamName, agent: agentName }, baseDir);
     return { id: record.id };
   }
   async deprecateL1(id) {
-    this.opts.storage.updateRow(id, { category: "archived", frozen: 0 });
+    const row = this.opts.storage.getById(id);
+    if (row) {
+      this.opts.storage.updateRow(id, { category: "archived", frozen: 0 });
+      this.opts.storage.updateSha(id);
+    }
     this.opts.vector.remove(id);
   }
 };

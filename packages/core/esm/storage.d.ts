@@ -20,6 +20,12 @@ export declare class MemoryStorage {
      * 注意：应在 updateRow（可能改 category/frozen）之后调用，否则 sha 会基于旧 category/frozen 计算。
      */
     updateContent(id: string, newContent: string): void;
+    /**
+     * 按当前 FTS content + category/frozen 重算 content_sha256（不改动 FTS content）。
+     * 用于 deprecateL1/markSuperseded 这类 category/frozen 变更后维持不变量
+     * content_sha256 = computeSha256(content, category, frozen)。
+     */
+    updateSha(id: string): void;
     markSuperseded(id: string, supersededBy: string): void;
     incrementAccess(id: string): void;
     getFrozenSnapshot(ownerId: string, maxTokens?: number): string;

@@ -1,10 +1,13 @@
+export interface EmbeddingClientConfig {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    /** 专用的 embedding 模型名；缺省回退到 model（chat 模型）。 */
+    embeddingModel?: string;
+}
 export declare class EmbeddingClient {
     private cfg;
-    constructor(cfg: {
-        baseUrl: string;
-        apiKey: string;
-        model: string;
-    });
+    constructor(cfg: EmbeddingClientConfig);
     embed(text: string): Promise<Float32Array>;
     embedBatch(texts: string[]): Promise<Float32Array[]>;
 }

@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory } from '@mymore/core';
+import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory, loadConfig } from '@mymore/core';
 import { v4 as uuid } from 'uuid';
 import { startNotifyServer } from './notify-server.js';
+import { PipelineManager } from './pipeline-manager.js';
 
 const rootDir = process.env.MYMORE_ROOT || join(homedir(), '.mymore');
 const memoryDir = join(rootDir, 'memory');
@@ -14,14 +15,42 @@ const dbPath = join(rootDir, '.index', 'memory.db');
 
 mkdirSync(join(rootDir, '.index'), { recursive: true });
 
-// L0 → L1 通知端口：hook 传感器（Task 2）通过 HTTP 投递 sessionKey。
-// Task 5 将把 handler 接到 PipelineManager；当前仅 log。
+// 管线配置（pipeline.everyNConversations / l1IdleTimeoutSeconds），缺省 config.json 时用 core 默认值。
+const cfg = loadConfig(rootDir);
+const pipelineCfg = {
+  everyNConversations: cfg.pipeline.everyNConversations,
+  l1IdleTimeoutSeconds: cfg.pipeline.l1IdleTimeoutSeconds,
+};
+
+// L0 → L1 调度器（Task 5）：hook 传感器（Task 2）通过 HTTP 投递 sessionKey，
+// notifyTurn() 按 阈值/warm-up 翻倍/flush 决定何时触发 L1 提取（Plan 3）。
+// onL1Ready 目前仅 log（L1 提取是 Plan 3，届时从 L0 读）；骨架演示调度即可。
+const pipelineManager = new PipelineManager({
+  baseDir: rootDir,
+  sessionKey: 'default',
+  cfg: pipelineCfg,
+  onL1Ready: (messages) => {
+    console.log(`[pipeline] L1 ready: pending=${messages.length} next threshold via warm-up`);
+  },
+});
+
 const notifyPort = Number(process.env.MYMORE_NOTIFY_PORT || 3477);
 startNotifyServer(notifyPort, (sessionKey) => {
   console.log(`[notify] L0 增量 sessionKey=${sessionKey}`);
+  pipelineManager.notifyTurn();
 }).catch((err) => {
   console.error(`[notify] 通知端口 ${notifyPort} 启动失败:`, err);
 });
+
+// SessionEnd / SIGTERM → flush：pending 计数 > 0 时补触发一次 L1。
+async function flushPipeline() {
+  await pipelineManager.flush();
+}
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    flushPipeline().finally(() => process.exit(0));
+  });
+}
 
 const storage = new MemoryStorage(dbPath);
 const md = new MarkdownHandler(memoryDir);

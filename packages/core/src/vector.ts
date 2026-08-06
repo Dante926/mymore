@@ -63,10 +63,13 @@ export class VectorStore {
          FROM vec_items WHERE embedding MATCH $vec AND k = $k`,
       )
       .all({ vec, k: topK }) as Array<{ record_id: string; distance: number | null }>;
-    return rows.map((r) => ({
-      record_id: r.record_id,
-      score: 1 - (r.distance ?? 1),
-    }));
+    // 过滤零相似度结果（cosine distance=1）：正交向量不算命中
+    return rows
+      .filter((r) => (r.distance ?? 1) < 1)
+      .map((r) => ({
+        record_id: r.record_id,
+        score: 1 - (r.distance ?? 1),
+      }));
   }
 
   close(): void {

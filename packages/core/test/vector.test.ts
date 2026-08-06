@@ -14,7 +14,7 @@ describe('VectorStore', () => {
 
   it('upserts and searches by cosine', () => {
     store.upsert('rec_a', new Float32Array([1, 0, 0]));
-    store.upsert('rec_b', new Float32Array([0, 1, 0]));
+    store.upsert('rec_b', new Float32Array([0.9, 0.1, 0]));
     const hits = store.search(new Float32Array([1, 0, 0]), 2);
     expect(hits[0].record_id).toBe('rec_a');
     expect(hits[0].score).toBeGreaterThan(hits[1].score);

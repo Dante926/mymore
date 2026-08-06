@@ -4,10 +4,11 @@ import { z } from 'zod';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory, loadConfig } from '@mymore/core';
+import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory } from '@mymore/core';
 import { v4 as uuid } from 'uuid';
 import { startNotifyServer } from './notify-server.js';
 import { PipelineManager } from './pipeline-manager.js';
+import { loadPipelineConfig } from './pipeline-config.js';
 
 const rootDir = process.env.MYMORE_ROOT || join(homedir(), '.mymore');
 const memoryDir = join(rootDir, 'memory');
@@ -15,12 +16,10 @@ const dbPath = join(rootDir, '.index', 'memory.db');
 
 mkdirSync(join(rootDir, '.index'), { recursive: true });
 
-// 管线配置（pipeline.everyNConversations / l1IdleTimeoutSeconds），缺省 config.json 时用 core 默认值。
-const cfg = loadConfig(rootDir);
-const pipelineCfg = {
-  everyNConversations: cfg.pipeline.everyNConversations,
-  l1IdleTimeoutSeconds: cfg.pipeline.l1IdleTimeoutSeconds,
-};
+// 管线配置（pipeline.everyNConversations / l1IdleTimeoutSeconds）。
+// loadPipelineConfig 对缺失/损坏/违规的 config.json 回退 core 默认值，
+// 启动不因配置而死（final review I1）。
+const pipelineCfg = loadPipelineConfig(rootDir);
 
 // L0 → L1 调度器（Task 5）：hook 传感器（Task 2）通过 HTTP 投递 sessionKey，
 // notifyTurn() 按 阈值/warm-up 翻倍/flush 决定何时触发 L1 提取（Plan 3）。
@@ -30,13 +29,13 @@ const pipelineManager = new PipelineManager({
   sessionKey: 'default',
   cfg: pipelineCfg,
   onL1Ready: (messages) => {
-    console.log(`[pipeline] L1 ready: pending=${messages.length} next threshold via warm-up`);
+    console.error(`[pipeline] L1 ready: pending=${messages.length} next threshold via warm-up`);
   },
 });
 
 const notifyPort = Number(process.env.MYMORE_NOTIFY_PORT || 3477);
 startNotifyServer(notifyPort, (sessionKey) => {
-  console.log(`[notify] L0 增量 sessionKey=${sessionKey}`);
+  console.error(`[notify] L0 增量 sessionKey=${sessionKey}`);
   pipelineManager.notifyTurn();
 }).catch((err) => {
   console.error(`[notify] 通知端口 ${notifyPort} 启动失败:`, err);

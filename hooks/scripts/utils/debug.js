@@ -34,22 +34,31 @@ export function setDebugPrefix(p) {
 }
 
 function normalizeArgs(args) {
-  // Support both (message, data?) and (prefix, message, data?) signatures:
-  // heuristics below keep existing callers like debug('prompt:', x) working.
+  // Support both (message, data?) and (prefix, message, data?) signatures,
+  // keeping existing callers like debug('prompt:', x) working.
+  // (message)
   if (args.length === 1) {
     return { prefix, message: String(args[0]) };
   }
+  // (prefix, message, data?)
   if (args.length >= 3) {
     const data = typeof args[2] === 'object' && args[2] !== null ? args[2] : undefined;
     return { prefix: String(args[0]), message: String(args[1]), data };
   }
-  // two args: (prefix, message) when the first is a short label ending in ':',
-  // otherwise (message, data).
-  if (typeof args[0] === 'string' && /^[\w\s-]+:\s*$/.test(args[0])) {
-    return { prefix, message: `${args[0]} ${String(args[1])}` };
+  // two args
+  const [a, b] = args;
+  // Legacy colon-label: debug('prompt:', x) / debug('key:', {a:1}).
+  // Objects are rendered as JSON (never "[object Object]").
+  if (typeof a === 'string' && /^[\w\s-]+:\s*$/.test(a)) {
+    const rendered = typeof b === 'object' && b !== null ? JSON.stringify(b) : String(b);
+    return { prefix, message: `${a} ${rendered}` };
   }
-  const data = typeof args[1] === 'object' && args[1] !== null ? args[1] : undefined;
-  return { prefix, message: String(args[0]), data };
+  // (message, object-data): debug('event', { key: 'value' })
+  if (typeof b === 'object' && b !== null) {
+    return { prefix, message: String(a), data: b };
+  }
+  // (message, extraText): merge both into the message — never drop a caller's info.
+  return { prefix, message: `${String(a)} ${String(b)}` };
 }
 
 /** Structured JSONL line — always written, independent of MYMORE_DEBUG. */

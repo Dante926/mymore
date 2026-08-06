@@ -4,6 +4,9 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { setLogDir, setDebugPrefix, debug } from '../scripts/utils/debug.js';
 
+const logPath = (dir) => join(dir, 'logs', `hooks-${new Date().toISOString().slice(0,10)}.jsonl`);
+const lastLine = (dir) => JSON.parse(readFileSync(logPath(dir), 'utf-8').trim().split('\n').pop());
+
 describe('hook logging', () => {
   let dir;
   beforeAll(() => { dir = mkdtempSync(join(tmpdir(), 'hlog-')); setLogDir(dir); });
@@ -12,11 +15,46 @@ describe('hook logging', () => {
   it('always writes a JSON line (not gated by MYMORE_DEBUG)', () => {
     setDebugPrefix('test');
     debug('event', { key: 'value' });
-    const logPath = join(dir, 'logs', `hooks-${new Date().toISOString().slice(0,10)}.jsonl`);
-    expect(existsSync(logPath)).toBe(true);
-    const line = JSON.parse(readFileSync(logPath, 'utf-8').trim().split('\n').pop());
+    expect(existsSync(logPath(dir))).toBe(true);
+    const line = lastLine(dir);
     expect(line.prefix).toBe('test');
     expect(line.message).toBe('event');
     expect(line.data).toEqual({ key: 'value' });
+  });
+
+  it('colon-label form (debug("label:", x)) keeps message and leaves data empty', () => {
+    setDebugPrefix('test');
+    debug('label:', 'value');
+    const line = lastLine(dir);
+    expect(line.prefix).toBe('test');
+    expect(line.message).toBe('label: value');
+    expect(line.data).toBeUndefined();
+  });
+
+  it('colon-label form renders object args as JSON, never [object Object]', () => {
+    setDebugPrefix('test');
+    debug('key:', { a: 1 });
+    const line = lastLine(dir);
+    expect(line.message).toBe('key: {"a":1}');
+    expect(line.message).not.toContain('[object Object]');
+    expect(line.data).toBeUndefined();
+  });
+
+  it('3-arg form (debug(prefix, message, data)) sets prefix/message/data', () => {
+    setDebugPrefix('test');
+    debug('p', 'm', { d: 1 });
+    const line = lastLine(dir);
+    expect(line.prefix).toBe('p');
+    expect(line.message).toBe('m');
+    expect(line.data).toEqual({ d: 1 });
+  });
+
+  it('2-arg no-colon with non-object second arg keeps both args', () => {
+    setDebugPrefix('test');
+    debug('a', 'b');
+    const line = lastLine(dir);
+    expect(line.prefix).toBe('test');
+    expect(line.message).toBe('a b');
+    expect(line.data).toBeUndefined();
   });
 });

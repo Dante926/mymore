@@ -23,4 +23,14 @@ describe('notify-server', () => {
     const res = await fetch(`http://127.0.0.1:${port}/notify`);
     expect(res.status).toBe(405);
   });
+
+  it('rejects (not crashes) when the port is already taken (EADDRINUSE)', async () => {
+    const busy = await startNotifyServer(0, () => {});
+    try {
+      // Same address as `busy` → second listen must reject, not emit unhandled 'error'
+      await expect(startNotifyServer((busy as any).port(), () => {})).rejects.toThrow();
+    } finally {
+      await busy.close();
+    }
+  });
 });

@@ -18,7 +18,11 @@ export async function startNotifyServer(port: number, handler: (sessionKey: stri
       } catch { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'bad body'})); }
     });
   });
-  await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.once('listening', () => resolve());
+    server.listen(port, '127.0.0.1');
+  });
   const actualPort = (server.address() as any).port;
   return {
     port: () => actualPort,

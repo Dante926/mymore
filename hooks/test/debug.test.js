@@ -57,4 +57,22 @@ describe('hook logging', () => {
     expect(line.message).toBe('a b');
     expect(line.data).toBeUndefined();
   });
+
+  it('never throws on circular or BigInt payloads (colon-label + data)', () => {
+    setDebugPrefix('test');
+    const circular = { name: 'loop' };
+    circular.self = circular;
+    // colon-label + circular object -> falls back to String, no throw
+    expect(() => debug('session:', circular)).not.toThrow();
+    expect(lastLine(dir).message).toBe('session: [object Object]');
+    // colon-label + BigInt -> JSON.stringify throws, falls back to String, no throw
+    expect(() => debug('count:', { n: 10n })).not.toThrow();
+    expect(lastLine(dir).message).toBe('count: [object Object]');
+    // (message, object-data) + circular/BigInt data -> whole line dropped, no throw
+    expect(() => debug('event', { n: 10n })).not.toThrow();
+    expect(() => debug('event', circular)).not.toThrow();
+    // a line was still written afterwards (logger alive)
+    expect(() => debug('alive', { ok: true })).not.toThrow();
+    expect(lastLine(dir).data).toEqual({ ok: true });
+  });
 });

@@ -33,32 +33,50 @@ export function setDebugPrefix(p) {
   prefix = p;
 }
 
+/** Safe JSON rendering — never throws (falls back to String). */
+function safeStringify(v) {
+  try {
+    const s = JSON.stringify(v);
+    return s === undefined ? String(v) : s;
+  } catch {
+    return String(v);
+  }
+}
+
 function normalizeArgs(args) {
-  // Support both (message, data?) and (prefix, message, data?) signatures,
-  // keeping existing callers like debug('prompt:', x) working.
-  // (message)
-  if (args.length === 1) {
-    return { prefix, message: String(args[0]) };
+  // debug must NEVER throw (see module contract). Any weird argument (circular
+  // objects, BigInt, Symbols, throwing toString/JSON.stringify, …) degrades to
+  // a best-effort entry instead of taking the hook down.
+  try {
+    // Support both (message, data?) and (prefix, message, data?) signatures,
+    // keeping existing callers like debug('prompt:', x) working.
+    // (message)
+    if (args.length === 1) {
+      return { prefix, message: String(args[0]) };
+    }
+    // (prefix, message, data?)
+    if (args.length >= 3) {
+      const data = typeof args[2] === 'object' && args[2] !== null ? args[2] : undefined;
+      return { prefix: String(args[0]), message: String(args[1]), data };
+    }
+    // two args
+    const [a, b] = args;
+    // Legacy colon-label: debug('prompt:', x) / debug('key:', {a:1}).
+    // Objects are rendered as JSON (never "[object Object]"), and never throw
+    // on circular/BigInt payloads.
+    if (typeof a === 'string' && /^[\w\s-]+:\s*$/.test(a)) {
+      const rendered = typeof b === 'object' && b !== null ? safeStringify(b) : String(b);
+      return { prefix, message: `${a} ${rendered}` };
+    }
+    // (message, object-data): debug('event', { key: 'value' })
+    if (typeof b === 'object' && b !== null) {
+      return { prefix, message: String(a), data: b };
+    }
+    // (message, extraText): merge both into the message — never drop a caller's info.
+    return { prefix, message: `${String(a)} ${String(b)}` };
+  } catch {
+    return { prefix, message: `debug(${args.length} arg${args.length === 1 ? '' : 's'})`, data: undefined };
   }
-  // (prefix, message, data?)
-  if (args.length >= 3) {
-    const data = typeof args[2] === 'object' && args[2] !== null ? args[2] : undefined;
-    return { prefix: String(args[0]), message: String(args[1]), data };
-  }
-  // two args
-  const [a, b] = args;
-  // Legacy colon-label: debug('prompt:', x) / debug('key:', {a:1}).
-  // Objects are rendered as JSON (never "[object Object]").
-  if (typeof a === 'string' && /^[\w\s-]+:\s*$/.test(a)) {
-    const rendered = typeof b === 'object' && b !== null ? JSON.stringify(b) : String(b);
-    return { prefix, message: `${a} ${rendered}` };
-  }
-  // (message, object-data): debug('event', { key: 'value' })
-  if (typeof b === 'object' && b !== null) {
-    return { prefix, message: String(a), data: b };
-  }
-  // (message, extraText): merge both into the message — never drop a caller's info.
-  return { prefix, message: `${String(a)} ${String(b)}` };
 }
 
 /** Structured JSONL line — always written, independent of MYMORE_DEBUG. */

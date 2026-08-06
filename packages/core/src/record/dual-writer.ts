@@ -20,6 +20,8 @@ export class DualWriter {
         version: record.version, source_message_ids: JSON.stringify(record.source_message_ids),
         team, agent, category: 'persistent', frozen: record.priority >= 90 ? 1 : 0,
       } as any);
+      // 刷新 FTS content + 重算 content_sha256（必须在 updateRow 之后，sha 依赖最终 category/frozen）
+      storage.updateContent(record.id, record.content);
     } else {
       storage.add({
         id: record.id, track: 'user', owner_id: agent ?? 'default', category: 'persistent',

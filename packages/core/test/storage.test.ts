@@ -99,6 +99,29 @@ describe('MemoryStorage', () => {
     expect(got!.source_message_ids).toBe('["msg_1","msg_2"]');
   });
 
+  it('should update content: refresh FTS search + content_sha256', () => {
+    const entry: MemoryEntry = {
+      id: 'test-upd-1', track: 'user', owner_id: 'alice',
+      category: 'persistent', content: '旧内容-唯一词A',
+      created_at: new Date().toISOString(), frozen: false, access_count: 0,
+    };
+    storage.add(entry);
+    const oldSha = storage.getById('test-upd-1')!.content_sha256;
+
+    storage.updateContent('test-upd-1', '新内容-唯一词B');
+
+    const byId = storage.getById('test-upd-1')!;
+    expect(byId.content_sha256).not.toBe(oldSha);
+    expect(byId.content_sha256).toBe(computeSha256('新内容-唯一词B', 'persistent', false));
+    // search 走 FTS：旧词应消失，新词应命中
+    expect(storage.search('唯一词A', { owner_id: 'alice' }).map(r => r.id)).not.toContain('test-upd-1');
+    const hits = storage.search('唯一词B', { owner_id: 'alice' });
+    expect(hits.map(r => r.id)).toContain('test-upd-1');
+    expect(hits.find(r => r.id === 'test-upd-1')!.content).toBe('新内容-唯一词B');
+    // getBySha256 应匹配新 hash
+    expect(storage.getBySha256(computeSha256('新内容-唯一词B', 'persistent', false))?.id).toBe('test-upd-1');
+  });
+
   it('should migrate an old DB without structured columns', () => {
     const oldDir = mkdtempSync(join(tmpdir(), 'mymore-migrate-'));
     const dbPath = join(oldDir, 'old.db');

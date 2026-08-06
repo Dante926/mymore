@@ -267,6 +267,24 @@ export class MemoryStorage {
     this.db.prepare(`UPDATE memory_meta SET ${sets.join(', ')} WHERE id = ?`).run(...params);
   }
 
+  /**
+   * 刷新一条记忆的内容：更新 memory_fts 的 content + 按当前 category/frozen 重算 content_sha256。
+   * 维护不变量 content_sha256 = computeSha256(content, category, frozen)（与 JSONL 真源一致）。
+   * 注意：应在 updateRow（可能改 category/frozen）之后调用，否则 sha 会基于旧 category/frozen 计算。
+   */
+  updateContent(id: string, newContent: string): void {
+    const row = this.getById(id);
+    if (!row) return;
+    const sha = computeSha256(newContent, row.category, row.frozen === 1);
+    const updateTx = this.db.transaction(() => {
+      this.db
+        .prepare('UPDATE memory_fts SET content = ? WHERE rowid = (SELECT fts_rowid FROM memory_meta WHERE id = ?)')
+        .run(newContent, id);
+      this.db.prepare('UPDATE memory_meta SET content_sha256 = ? WHERE id = ?').run(sha, id);
+    });
+    updateTx();
+  }
+
   markSuperseded(id: string, supersededBy: string): void {
     this.db.prepare(`
       UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0

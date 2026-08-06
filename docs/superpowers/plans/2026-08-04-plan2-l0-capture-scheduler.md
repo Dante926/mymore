@@ -511,3 +511,14 @@ git add -A
 git commit -m "chore: Plan 2 全量验证 + 构建确认"
 ```
 (If no changes, note it and skip commit.)
+
+---
+
+### Verification note (Task 6, 2026-08-06)
+
+Full-suite verification passed on 2026-08-06:
+
+- **Build:** `pnpm build` → exit 0. `packages/core` via father (esm + cjs, 12 files each), `apps/mcp-server` via tsup (esm → `dist/bootstrap.js`).
+- **Tests:** `packages/core` 63/63 (11 files), `apps/mcp-server` 13/13 (4 files: pipeline-manager 2, notify-server 3, integration 7, tools 1), `hooks` 12/12 (2 files: debug 6, l0-sensor 6).
+- **Host mcp-server:** `node apps/mcp-server/dist/bootstrap.js` starts, listens on 127.0.0.1:3477, `POST /notify` returns `{"ok":true}`, notify fires `[pipeline] L1 ready`; SIGTERM handled (flush + clean exit 0).
+- **Known pre-existing:** `src/bootstrap.ts` retains the 3 tsc errors from before Plan 2 (reflect_memories/reflect_all null/group_key typing) — out of scope for this task, unchanged.

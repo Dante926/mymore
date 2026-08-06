@@ -6,12 +6,22 @@ import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
 import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory } from '@mymore/core';
 import { v4 as uuid } from 'uuid';
+import { startNotifyServer } from './notify-server.js';
 
 const rootDir = process.env.MYMORE_ROOT || join(homedir(), '.mymore');
 const memoryDir = join(rootDir, 'memory');
 const dbPath = join(rootDir, '.index', 'memory.db');
 
 mkdirSync(join(rootDir, '.index'), { recursive: true });
+
+// L0 → L1 通知端口：hook 传感器（Task 2）通过 HTTP 投递 sessionKey。
+// Task 5 将把 handler 接到 PipelineManager；当前仅 log。
+const notifyPort = Number(process.env.MYMORE_NOTIFY_PORT || 3477);
+startNotifyServer(notifyPort, (sessionKey) => {
+  console.log(`[notify] L0 增量 sessionKey=${sessionKey}`);
+}).catch((err) => {
+  console.error(`[notify] 通知端口 ${notifyPort} 启动失败:`, err);
+});
 
 const storage = new MemoryStorage(dbPath);
 const md = new MarkdownHandler(memoryDir);

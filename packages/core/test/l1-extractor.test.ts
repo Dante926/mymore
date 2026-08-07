@@ -32,6 +32,21 @@ describe('L1 extractor', () => {
     expect(result.sceneNames).toEqual(['s']);
   });
 
+  it('extracts first array despite trailing bracket-bearing text', async () => {
+    const messages = [{ id: 'm1', role: 'user' as const, content: 'x', timestamp: 1 }];
+    const llm = fakeLlm(
+      JSON.stringify([{ scene_name: 's', message_ids: ['m1'], memories: [
+        { content: 'c', type: 'persona', priority: 80, source_message_ids: ['m1'], metadata: {} },
+      ] }]) +
+        '\n以下是补充说明 [备注1] [备注2]（含方括号的尾部文本）',
+    );
+    const result = await extractL1Memories({ messages, llm, baseDir: '/tmp/x', sessionKey: 's' });
+    expect(result.success).toBe(true);
+    expect(result.sceneNames).toEqual(['s']);
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0].content).toBe('c');
+  });
+
   it('repairs bare identifier priority and trailing comma', async () => {
     const messages = [{ id: 'm1', role: 'user' as const, content: 'x', timestamp: 1 }];
     const llm = fakeLlm('[{"scene_name":"s","message_ids":[],"memories":[{"content":"c","type":"persona","priority": sheet,"source_message_ids":[],"metadata":{}},]}]');

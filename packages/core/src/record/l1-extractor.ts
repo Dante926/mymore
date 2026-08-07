@@ -207,12 +207,13 @@ export function parseExtractionResult(raw: string): SceneSegment[] {
       cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
     }
 
-    // 2. 正则抽第一个 [...]
-    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (!arrayMatch) return [];
+    // 2. 抽取第一个 JSON 数组：括号平衡扫描（正确跳过字符串字面量内的
+    //    [ ] 与嵌套数组，杜绝贪心正则被尾部含 [ ] 的文本污染整个 batch）
+    const arrayJson = extractFirstJsonArray(cleaned);
+    if (arrayJson === null) return [];
 
     // 3. sanitize 控制字符
-    const sanitized = sanitizeJsonForParse(arrayMatch[0]);
+    const sanitized = sanitizeJsonForParse(arrayJson);
 
     // 4. JSON.parse，失败则 repair 重试一次
     let parsed: unknown;
@@ -263,6 +264,43 @@ export function parseExtractionResult(raw: string): SceneSegment[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * 抽取文本中第一个括号平衡的 JSON 数组字面量。
+ * 逐字符扫描，跟踪字符串状态（转义、引号）与 `[]` 嵌套深度：
+ * - 字符串字面量内的 `[` / `]` 不算结构符号；
+ * - 返回从首个 `[` 到其匹配的 `]` 的切片；
+ * - 找不到或未闭合返回 null（调用方按空结果处理）。
+ */
+function extractFirstJsonArray(raw: string): string | null {
+  const start = raw.indexOf('[');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '[') {
+      depth++;
+    } else if (ch === ']') {
+      depth--;
+      if (depth === 0) return raw.slice(start, i + 1);
+    }
+  }
+  return null;
 }
 
 /**

@@ -8,6 +8,9 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 import { mkdirSync, appendFileSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
+
+/** L1 提取输入消息类型：L0 写入记录的精简视图（含 id 用于 source_message_ids 追踪） */
+
 function dateStr() {
   var d = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new Date();
   return d.toISOString().slice(0, 10);

@@ -308,10 +308,13 @@ var MemoryStorage = class {
     this.db.prepare("UPDATE memory_meta SET content_sha256 = ? WHERE id = ?").run(sha, id);
   }
   markSuperseded(id, supersededBy) {
-    this.db.prepare(`
+    const updated = this.db.prepare(`
       UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0
       WHERE id = ? AND superseded_by IS NULL
     `).run(supersededBy, id);
+    if (updated.changes > 0) {
+      this.updateSha(id);
+    }
   }
   incrementAccess(id) {
     this.db.prepare(`

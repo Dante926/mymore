@@ -1,3 +1,10 @@
+/** L1 提取输入消息类型：L0 写入记录的精简视图（含 id 用于 source_message_ids 追踪） */
+export interface ConversationMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: number;
+}
 export interface L0MessageRecord {
     sessionKey: string;
     sessionId: string;

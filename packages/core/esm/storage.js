@@ -281,7 +281,13 @@ export var MemoryStorage = /*#__PURE__*/function () {
   }, {
     key: "markSuperseded",
     value: function markSuperseded(id, supersededBy) {
-      this.db.prepare("\n      UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0\n      WHERE id = ? AND superseded_by IS NULL\n    ").run(supersededBy, id);
+      var updated = this.db.prepare("\n      UPDATE memory_meta SET superseded_by = ?, category = 'archived', frozen = 0\n      WHERE id = ? AND superseded_by IS NULL\n    ").run(supersededBy, id);
+      // category/frozen 变更后重算 content_sha256，维持不变量
+      // content_sha256 = computeSha256(content, category, frozen)：否则下次
+      // CascadeSync.syncOne 检测 SHA 不匹配 → md.writeEntry 把已归档记录复活回 persistent。
+      if (updated.changes > 0) {
+        this.updateSha(id);
+      }
     }
   }, {
     key: "incrementAccess",

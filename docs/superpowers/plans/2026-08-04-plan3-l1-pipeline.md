@@ -516,3 +516,15 @@ git add -A
 git commit -m "chore: Plan 3 全量验证 + 构建确认"
 ```
 (If no changes, note it and skip commit.)
+
+---
+
+### Verification note (Task 6, 2026-08-07)
+
+Full-suite verification passed on 2026-08-07:
+
+- **Build:** `pnpm build` → exit 0. `packages/core` via father (esm + cjs, 17 files each), `apps/mcp-server` via tsup (esm → `dist/bootstrap.js`).
+- **Tests:** `packages/core` 81/81 (14 files), `apps/mcp-server` 21/21 (7 files), `hooks` 16/16 (3 files).
+- **Build-artifact sync:** Plan 3 source changes (storage.ts, conversation/l0-recorder.ts, index.ts exports, new llm.ts, prompts/, record/l1-extractor.ts, record/l1-dedup.ts, record/l1-writer.ts, record/dual-writer.ts) rebuilt into git-tracked `packages/core/esm/` + `packages/core/cjs/` and committed in this task, so `@mymore/core` consumers get the latest code.
+- **Host mcp-server:** `node apps/mcp-server/dist/bootstrap.js` starts, listens on 127.0.0.1:3477, `POST /notify` returns `{"ok":true}`, notify fires `[pipeline] L1 ready: session=test extracted=0 stored=0` (no hosted LLM endpoint → extracted/stored 0, expected); SIGTERM → clean exit.
+- **Known pre-existing (untouched):** `src/bootstrap.ts` retains the 3 tsc errors from before Plan 3 (reflect_memories/reflect_all null/group_key typing at :248/:313/:320). `scripts/install.sh` working-tree change left uncommitted per task constraint.

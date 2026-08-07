@@ -38,4 +38,40 @@ describe('PipelineManager', () => {
     pm.flush();
     expect(calls.length).toBe(before + 1);
   });
+
+  it('L1 completion advances L2 timer (only earlier)', () => {
+    const pm = make(5);
+    pm.notifyTurn(); // triggers L1 (warm-up 1)
+    // after L1, advanceL2Timer sets target = max(now+delay, lastL2+min)
+    const t = pm.getL2TimerTarget();
+    expect(t).toBeGreaterThan(Date.now());
+  });
+
+  it('cold session stops L2 timer', () => {
+    const pm = make(5);
+    pm.setLastActive(Date.now() - 25 * 3600 * 1000); // 25h ago
+    const fired = pm.onL2TimerFired();
+    expect(fired).toBe(false); // stopped, no L2 run
+  });
+
+  it('L2 run advances lastL2At and arms maxInterval', () => {
+    const pm = make(5);
+    pm.setLastActive(Date.now());
+    const fired = pm.onL2TimerFired();
+    expect(fired).toBe(true);
+    const t = pm.getL2TimerTarget();
+    expect(t).toBeLessThanOrEqual(Date.now() + 3600 * 1000); // maxInterval 3600
+    expect(t).toBeGreaterThan(Date.now() + 900 * 1000); // minInterval 900 → 距离 lastL2At
+  });
+
+  it('L3 dedups pending (no double-run)', async () => {
+    const pm = make(5);
+    let l3Runs = 0;
+    pm.setL3Callback(async () => { l3Runs++; });
+    pm.setL2Callback(() => { /* no-op */ });
+    pm.setLastActive(Date.now());
+    pm.notifyL3(); pm.notifyL3(); // two rapid notifications
+    await new Promise((r) => setTimeout(r, 0)); // let the L3 chain settle
+    expect(l3Runs).toBe(1);
+  });
 });

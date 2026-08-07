@@ -16,7 +16,7 @@
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import type { LLMRunner } from '../llm.js';
 import type { L1Record } from '../record/l1-writer.js';
 import {
@@ -191,7 +191,10 @@ ${indexText}
     let targetPath: string | undefined;
     let newSceneName: string | undefined;
     let content = '';
-    let heat = 1;
+    // heat 最终值：update/create/merge 各自的策略规则（§4.2 热度管理）计算，
+    // 若 LLM 提供了合法正 heat 则以其为准。merge 的兜底 = sum(所有相关 block) + 1，
+    // 因此从 0 起步累加（target + deleted）再 +1。
+    let heat = 0;
 
     if (action === 'update' || action === 'merge') {
       const target = decision.target_path ?? (existingScenes.length > 0 ? existingScenes[0].path : undefined);
@@ -215,7 +218,7 @@ ${indexText}
           this.softDelete(p);
           deletedPaths.push(p);
         }
-        heat += oldHeat + 1;
+        heat += oldHeat + 1; // sum(target + deleted) + 1
         if (llmHeat > 0) heat = llmHeat;
         const created = old?.meta.created ?? now.slice(0, 10);
         content = normalizeContent(decision.content, created, now, decision.summary ?? '', heat);
@@ -226,7 +229,9 @@ ${indexText}
         content = normalizeContent(decision.content, created, now, decision.summary ?? '', heat);
       }
 
-      this.writeScene(targetPath, content);
+      // 路径消毒：update/merge 的 target_path 必须 resolve 后落在 scenesDir 内，否则拒绝
+      const targetResolved = this.resolveScenePath(targetPath);
+      this.writeSceneResolved(targetResolved, content);
     } else {
       // create：写新文件（sanitize scene_name 归一，保证 .md 后缀），heat=1。
       // newSceneName 保留 LLM 给出的原始名称（展示用），targetPath 为归一后的文件名。
@@ -264,21 +269,42 @@ ${indexText}
     };
   }
 
+  /** 按原始文件名写入场景（create 用，fileName 已 sanitizeSceneName 归一，仍走 resolve 消毒）。 */
   private writeScene(fileName: string, content: string): void {
-    const sceneBlocksDir = join(this.scenesDir, 'scene_blocks');
-    const scanDir = existsSync(sceneBlocksDir) ? sceneBlocksDir : this.scenesDir;
-    mkdirSync(scanDir, { recursive: true });
-    writeFileSync(join(scanDir, fileName), content, 'utf8');
+    this.writeSceneResolved(this.resolveScenePath(fileName), content);
+  }
+
+  /** 按已 resolve 的绝对路径写入（update/merge 用，路径已通过 resolveScenePath 断言在 scenesDir 内）。 */
+  private writeSceneResolved(fullPath: string, content: string): void {
+    mkdirSync(this.scanDir(), { recursive: true });
+    writeFileSync(fullPath, content, 'utf8');
   }
 
   /** 软删除：把文件内容覆写为 [DELETED] 标记（对齐蓝图 §4.2 / 参考实现：空字符串会被拒绝）。 */
   private softDelete(fileName: string): void {
-    const sceneBlocksDir = join(this.scenesDir, 'scene_blocks');
-    const scanDir = existsSync(sceneBlocksDir) ? sceneBlocksDir : this.scenesDir;
-    const full = join(scanDir, fileName);
+    const full = this.resolveScenePath(fileName);
     if (existsSync(full)) {
       writeFileSync(full, '[DELETED]', 'utf8');
     }
+  }
+
+  /** 场景文件的扫描目录：`scene_blocks/` 存在则用之，否则退回 scenesDir（与 syncSceneIndex 一致）。 */
+  private scanDir(): string {
+    const sceneBlocksDir = join(this.scenesDir, 'scene_blocks');
+    return existsSync(sceneBlocksDir) ? sceneBlocksDir : this.scenesDir;
+  }
+
+  /**
+   * 路径消毒（防逃逸）：把 LLM 提供的文件名 resolve 后断言其位于 scenesDir 内。
+   * `../x.md`、绝对路径、嵌套目录越界等一律拒绝并抛错，绝不写出 scenesDir。
+   */
+  private resolveScenePath(fileName: string): string {
+    const full = join(this.scanDir(), fileName);
+    const root = `${resolve(this.scenesDir)}${sep}`;
+    if (!resolve(full).startsWith(root)) {
+      throw new Error(`[scene-extractor] 非法路径（逃逸 scenesDir）: ${fileName}`);
+    }
+    return full;
   }
 }
 
@@ -329,8 +355,10 @@ export function parseSceneDecision(raw: string): SceneDecision {
 
     const objectJson = extractFirstJsonObject(cleaned);
     if (objectJson === null) {
-      // 无对象但可能只吐了数组/文本 → 保守返回默认
-      return { action: 'update', content: '', request_persona_update: false };
+      // 无合法 JSON 对象 → 抛错。L1 的失败语义是返回空结果（不写），
+      // L2 没有"安全空动作"：回退成 update 会覆盖真实场景，因此直接 throw，
+      // 由调用方决定降级（no-op / 跳过本批），绝不写任何文件。
+      throw new Error('L2 LLM 输出中未找到合法 JSON 对象');
     }
 
     const sanitized = sanitizeJsonForParse(objectJson);
@@ -344,7 +372,7 @@ export function parseSceneDecision(raw: string): SceneDecision {
     }
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { action: 'update', content: '', request_persona_update: false };
+      throw new Error('L2 LLM 输出 JSON 不是对象');
     }
 
     const d = parsed as Record<string, unknown>;
@@ -358,8 +386,11 @@ export function parseSceneDecision(raw: string): SceneDecision {
       summary: typeof d.summary === 'string' ? d.summary : '',
       heat: typeof d.heat === 'number' && Number.isFinite(d.heat) ? d.heat : undefined,
     };
-  } catch {
-    return { action: 'update', content: '', request_persona_update: false };
+  } catch (err) {
+    // 解析/校验失败 → 抛错（不是返回占位 action），调用方不落任何文件。
+    throw err instanceof Error
+      ? err
+      : new Error(`L2 场景决策解析失败: ${String(err)}`);
   }
 }
 

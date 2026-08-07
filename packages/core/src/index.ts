@@ -26,3 +26,12 @@ export { EmbeddingClient, VectorStore } from './vector.js';
 export { appendL1Record, readL1Records, getL1Record, generateMemoryId } from './record/l1-writer.js';
 export type { L1Record } from './record/l1-writer.js';
 export { DualWriter } from './record/dual-writer.js';
+
+export { LLMRunner } from './llm.js';
+export type { LLMRunParams } from './llm.js';
+export { extractL1Memories } from './record/l1-extractor.js';
+export type { SceneSegment, L1ExtractionResult } from './record/l1-extractor.js';
+export { EXTRACT_MEMORIES_SYSTEM_PROMPT, formatExtractionPrompt } from './prompts/l1-extraction.js';
+export { batchDedup, applyDecisions } from './record/l1-dedup.js';
+export type { DedupDecision } from './record/l1-dedup.js';
+export { CONFLICT_DETECTION_SYSTEM_PROMPT } from './prompts/l1-dedup.js';

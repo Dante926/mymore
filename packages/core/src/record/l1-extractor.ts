@@ -141,6 +141,7 @@ export async function extractL1Memories(params: ExtractL1Params): Promise<L1Extr
       source_message_ids: mem.source_message_ids,
       created_at: new Date().toISOString(),
       version: 1,
+      metadata: mem.metadata ?? {},
     };
     try {
       appendL1Record(record, baseDir);

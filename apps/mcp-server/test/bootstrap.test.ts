@@ -19,4 +19,11 @@ describe('bootstrap stdio hygiene (C1: MCP 协议通道独占 stdout)', () => {
     expect(src).toMatch(/console\.error\(`\[pipeline\] L1 ready/);
     expect(src).toMatch(/console\.error\(`\[notify\] L0 增量/);
   });
+
+  it('derives embedding dims from config, not a 1536 literal', () => {
+    const src = readFileSync(join(process.cwd(), 'src/bootstrap.ts'), 'utf-8');
+    // The vector dimension must come from config/first-embed, never a hardcoded 1536
+    expect(src).not.toMatch(/EMBEDDING_DIMS\s*=\s*1536/);
+    expect(src).toMatch(/embeddingModel|deriveDims|firstEmbed/);
+  });
 });

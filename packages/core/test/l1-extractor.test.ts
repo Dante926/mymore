@@ -72,4 +72,14 @@ describe('L1 extractor', () => {
     const result = await extractL1Memories({ messages, llm, baseDir: '/tmp/x', sessionKey: 's' });
     expect(result.records).toHaveLength(0);
   });
+
+  it('persists episodic activity-time metadata', async () => {
+    const messages = [{ id: 'm1', role: 'user' as const, content: '用户：昨天部署了 v2', timestamp: 1000 }];
+    const llm = fakeLlm(JSON.stringify([{ scene_name: '部署', message_ids: [], memories: [
+      { content: '用户昨天部署 v2', type: 'episodic', priority: 85, source_message_ids: ['m1'],
+        metadata: { activity_start_time: '2026-08-03T10:00:00Z' } },
+    ] }]));
+    const result = await extractL1Memories({ messages, llm, baseDir: '/tmp/x', sessionKey: 's' });
+    expect(result.records[0].metadata).toEqual({ activity_start_time: '2026-08-03T10:00:00Z' });
+  });
 });

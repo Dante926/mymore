@@ -15,6 +15,8 @@ export interface L1Record {
   version: number;
   team?: string;
   agent?: string;
+  /** 记忆元数据（Plan 3 硬前提 1：L1 episodic 的 activity_* 时间等字段不再被丢弃）。 */
+  metadata?: Record<string, unknown>;
 }
 
 export interface ReadL1RecordsOptions {

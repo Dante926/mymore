@@ -34,13 +34,87 @@ const l1Config = (() => {
   }
 })();
 
-// 向量维度：hosted embedding 模型的固定维度（OpenAI text-embedding-3-* 等默认 1536）。
-// 若配置的 embeddingModel 维度不同，需在此对齐（VectorStore 建表后维度不可变）。
-const EMBEDDING_DIMS = 1536;
+// 向量维度：不再硬编码 1536（Plan 3 硬前提 2 —— 真实非 1536 维 embedding 端点会因
+// VectorStore 建表维度错位而运行时失败）。改为从 config 的 llm.embeddingModel 推导；
+// 无 config 时先探一个默认维度，首次真实 embed 调用后强校验，mismatch 立即响亮报错
+// （VectorStore 建表后维度不可变，错误必须在写库前暴露，绝不静默降级）。
+//
+// 模型名 → 维度 推导。OpenAI text-embedding-3-large 为 3072 维，其余 text-embedding-3-* 为 1536。
+const EMBEDDING_MODEL_DIMS: Record<string, number> = {
+  'text-embedding-3-large': 3072,
+};
+
+/** 无法从 config 推导时的默认维度（仅作建表用，首次 embed 后强校验）。 */
+const FALLBACK_DIMS = 1536;
+
+/**
+ * 从 config 推导向量维度（Plan 3 硬前提 2）：
+ * - llm.embeddingModel（或回退 llm.model）命中已知模型 → 直接返回其维度；
+ * - 命中已知模型族前缀（nomic-embed / mxbai-embed / bge-m3 等非 1536 端点）→ 返回族维度；
+ * - 否则返回 FALLBACK_DIMS 暂定，首次真实 embed 后强校验（mismatch → throw）。
+ */
+function resolveEmbeddingDims(cfg: MyMoreConfig): number {
+  const model = (cfg.llm.embeddingModel ?? cfg.llm.model).trim();
+  if (model) {
+    const exact = EMBEDDING_MODEL_DIMS[model];
+    if (exact !== undefined) {
+      console.error(`[vector] embedding 维度由 config 推导：model=${model} dims=${exact}`);
+      return exact;
+    }
+    const byFamily = matchKnownModelFamilyDims(model);
+    if (byFamily !== null) {
+      console.error(`[vector] embedding 维度由 config 推导：model=${model} dims=${byFamily}`);
+      return byFamily;
+    }
+    console.error(
+      `[vector] 无法从 embeddingModel 推断维度（model=${model}），先探默认 ${FALLBACK_DIMS}，首次 embed 后强校验`,
+    );
+    return FALLBACK_DIMS;
+  }
+  console.error(`[vector] 无 embedding 配置，先探默认 ${FALLBACK_DIMS}，首次 embed 后强校验`);
+  return FALLBACK_DIMS;
+}
+
+/**
+ * 已知 embedding 模型族维度推导（config 有模型名、但不在精确表中时按族前缀匹配）：
+ * - OpenAI text-embedding-3-* 中，仅 large 是 3072，其余（small/ada 等）为 1536；
+ * - 其余已知端点（如 ollama nomic-embed-text 768 / mxbai-embed-large 1024）按前缀识别。
+ * 返回 null 表示无法推导（走首次 embed 探测 + 强校验）。
+ */
+function matchKnownModelFamilyDims(model: string): number | null {
+  const name = model.trim().toLowerCase();
+  if (name.includes('text-embedding-3')) return name.includes('large') ? 3072 : 1536;
+  if (name.includes('nomic-embed')) return 768;
+  if (name.includes('mxbai-embed')) return 1024;
+  if (name.includes('bge-m3')) return 1024;
+  return null;
+}
+
+// 由 config 推导的向量维度（Plan 3 硬前提 2）：VectorStore 建表用，建表后不可变。
+const embeddingDims = resolveEmbeddingDims(l1Config);
 
 const storage = new MemoryStorage(dbPath);
-const vector = new VectorStore(join(rootDir, '.index', 'vec.db'), EMBEDDING_DIMS);
+const vector = new VectorStore(join(rootDir, '.index', 'vec.db'), embeddingDims);
+
+// 首次真实 embed 后强校验维度（Plan 3 硬前提 2）：VectorStore 建表后维度不可变，
+// 实际维度 ≠ 建表维度必须在写库前响亮报错。包一层 embedBatch——L1 去重/双写的所有
+// 向量都经它落库，mismatch 时 throw（非静默），错误信息指向 config.llm.embeddingModel。
 const embed = new EmbeddingClient(l1Config.llm);
+const rawEmbedBatch = embed.embedBatch.bind(embed);
+embed.embedBatch = async (texts: string[]): Promise<Float32Array[]> => {
+  const vecs = await rawEmbedBatch(texts);
+  const model = l1Config.llm.embeddingModel ?? l1Config.llm.model;
+  for (const vec of vecs) {
+    if (vec.length !== embeddingDims) {
+      throw new Error(
+        `[vector] embedding 维度不匹配：config 推导建表 ${embeddingDims} 维，` +
+          `首次 embed（model=${model || 'unknown'}）实测 ${vec.length} 维。` +
+          `VectorStore 建表后维度不可变，请在 config.llm.embeddingModel 配置正确的模型名后重建向量库。`,
+      );
+    }
+  }
+  return vecs;
+};
 const llm = new LLMRunner(l1Config.llm);
 const md = new MarkdownHandler(memoryDir);
 const cascade = new CascadeSync(storage, md);

@@ -4,10 +4,12 @@ import { z } from 'zod';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
 import { mkdirSync } from 'fs';
-import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory } from '@mymore/core';
+import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory, LLMRunner, EmbeddingClient, VectorStore, loadConfig } from '@mymore/core';
+import type { MyMoreConfig } from '@mymore/core';
 import { v4 as uuid } from 'uuid';
 import { startNotifyServer } from './notify-server.js';
 import { PipelineManager } from './pipeline-manager.js';
+import { L1Runner } from './l1-runner.js';
 import { loadPipelineConfig } from './pipeline-config.js';
 
 const rootDir = process.env.MYMORE_ROOT || join(homedir(), '.mymore');
@@ -21,22 +23,70 @@ mkdirSync(join(rootDir, '.index'), { recursive: true });
 // 启动不因配置而死（final review I1）。
 const pipelineCfg = loadPipelineConfig(rootDir);
 
-// L0 → L1 调度器（Task 5）：hook 传感器（Task 2）通过 HTTP 投递 sessionKey，
+// L1 提取所需的真实依赖：llm/embed 走 config。config.json 缺失/损坏时回退空配置——
+// LLM 调用在运行时失败由 extractL1Memories 兜底（success:false 全 0），启动不因配置而死。
+const l1Config = (() => {
+  try {
+    return loadConfig(rootDir);
+  } catch (err) {
+    console.error(`[config] config.json 缺失/损坏，L1 依赖回退空配置:`, (err as Error).message);
+    return { llm: { baseUrl: '', apiKey: '', model: '' } } as MyMoreConfig;
+  }
+})();
+
+// 向量维度：hosted embedding 模型的固定维度（OpenAI text-embedding-3-* 等默认 1536）。
+// 若配置的 embeddingModel 维度不同，需在此对齐（VectorStore 建表后维度不可变）。
+const EMBEDDING_DIMS = 1536;
+
+const storage = new MemoryStorage(dbPath);
+const vector = new VectorStore(join(rootDir, '.index', 'vec.db'), EMBEDDING_DIMS);
+const embed = new EmbeddingClient(l1Config.llm);
+const llm = new LLMRunner(l1Config.llm);
+const md = new MarkdownHandler(memoryDir);
+const cascade = new CascadeSync(storage, md);
+const consolidator = new Consolidator(storage, cascade, md);
+
+// L0 → L1 调度器（Task 5）：hook 传感器（Task 2）通过 HTTP 投递真实 sessionKey，
 // notifyTurn() 按 阈值/warm-up 翻倍/flush 决定何时触发 L1 提取（Plan 3）。
-// onL1Ready 目前仅 log（L1 提取是 Plan 3，届时从 L0 读）；骨架演示调度即可。
+// onL1Ready 不再只 log：转发 notify 的 sessionKey 并驱动 per-session L1Runner 跑
+// 真实 L1 提取/去重/双写（Plan 2 I3 接缝 —— 用 notify body 的 sessionKey，非硬编码）。
 const pipelineManager = new PipelineManager({
   baseDir: rootDir,
   sessionKey: 'default',
   cfg: pipelineCfg,
-  onL1Ready: (messages) => {
-    console.error(`[pipeline] L1 ready: pending=${messages.length} next threshold via warm-up`);
+  onL1Ready: (_messages, sessionKey) => {
+    const key = sessionKey || 'default';
+    getL1Runner(key)
+      .run()
+      .then((r) => console.error(`[pipeline] L1 ready: session=${key} extracted=${r.extracted} stored=${r.stored}`))
+      .catch((err) => console.error(`[pipeline] L1 run failed: ${err instanceof Error ? err.message : String(err)}`));
   },
 });
+
+// per-session L1Runner：同一进程内可能收到多个 sessionKey 的 notify，每个 session
+// 各持一个 runner（独立 lastL1Timestamp 游标），共享同一套 llm/storage/vector/embed。
+const l1Runners = new Map<string, L1Runner>();
+function getL1Runner(sessionKey: string): L1Runner {
+  let runner = l1Runners.get(sessionKey);
+  if (!runner) {
+    runner = new L1Runner({
+      baseDir: rootDir,
+      sessionKey,
+      llm,
+      storage,
+      vector,
+      embed,
+      lastL1Timestamp: 0,
+    });
+    l1Runners.set(sessionKey, runner);
+  }
+  return runner;
+}
 
 const notifyPort = Number(process.env.MYMORE_NOTIFY_PORT || 3477);
 startNotifyServer(notifyPort, (sessionKey) => {
   console.error(`[notify] L0 增量 sessionKey=${sessionKey}`);
-  pipelineManager.notifyTurn();
+  pipelineManager.notifyTurn(sessionKey);
 }).catch((err) => {
   console.error(`[notify] 通知端口 ${notifyPort} 启动失败:`, err);
 });
@@ -50,11 +100,6 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     flushPipeline().finally(() => process.exit(0));
   });
 }
-
-const storage = new MemoryStorage(dbPath);
-const md = new MarkdownHandler(memoryDir);
-const cascade = new CascadeSync(storage, md);
-const consolidator = new Consolidator(storage, cascade, md);
 
 // Startup scan
 const scan = cascade.scanAndSync();

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { MemoryStorage } from '../src/storage.js';
+import { MemoryStorage, computeSha256 } from '../src/storage.js';
 import { MarkdownHandler } from '../src/markdown.js';
 import { CascadeSync } from '../src/cascade.js';
 import type { MemoryEntry } from '../src/models.js';
@@ -76,5 +76,39 @@ describe('CascadeSync', () => {
     const found = cascade.getByMdPath(result.mdPath);
     expect(found).not.toBeNull();
     expect(found!.id).toBe('csc-mdpath');
+  });
+
+  it('syncOne does NOT resurrect a markSuperseded target (sha invariant held)', () => {
+    const entry: MemoryEntry = {
+      id: 'csc-superseded', track: 'user', owner_id: 'bob',
+      category: 'persistent', content: 'markSuperseded 后被归档的内容',
+      created_at: new Date().toISOString(), frozen: false, access_count: 0,
+    };
+    cascade.syncOne(entry);
+
+    // superseded_by 外键需要目标存在
+    storage.add({
+      id: 'newer-id', track: 'user', owner_id: 'bob', category: 'persistent',
+      content: '更新后的内容', created_at: new Date().toISOString(),
+      frozen: false, access_count: 0,
+    });
+
+    // 用同样内容但 persistent 的 entry 去 markSuperseded（dedup 路径的实际操作）
+    storage.markSuperseded('csc-superseded', 'newer-id');
+
+    const archived = storage.getById('csc-superseded')!;
+    expect(archived.category).toBe('archived');
+    expect(archived.superseded_by).toBe('newer-id');
+    // 不变量：sha 已按 archived 重算，getBySha256 命中
+    expect(storage.getBySha256(archived.content_sha256)!.id).toBe('csc-superseded');
+
+    // 重新以同样的 (content, persistent, false) entry 跑 syncOne：
+    // sha 不匹配 archived 的 sha → syncOne 会走 writeEntry 分支…… 但目标行已经 archived + superseded。
+    // 验证 markSuperseded 后 sha 正确反映 archived 状态：computeSha256(content, 'persistent', false)
+    // 的 sha 不再命中该行（syncOne 的 sha 短路逻辑不会把 archived 行当作 unchanged）。
+    const persistentSha = computeSha256(entry.content, 'persistent', false);
+    expect(storage.getBySha256(persistentSha)).toBeNull();
+    // 且 archived 行的 sha 明确是 archived 版本 —— 不会以 persistent 面貌复活
+    expect(archived.content_sha256).not.toBe(persistentSha);
   });
 });

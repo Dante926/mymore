@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { MemoryStorage } from '../src/storage.js';
+import { MemoryStorage, computeSha256 } from '../src/storage.js';
 import { VectorStore, EmbeddingClient } from '../src/vector.js';
 import { LLMRunner } from '../src/llm.js';
 import { batchDedup, applyDecisions } from '../src/record/l1-dedup.js';
@@ -97,6 +97,12 @@ describe('L1 dedup', () => {
     // storage.search 默认排除 superseded 行（superseded_by IS NULL 条件），旧目标不再浮现
     const ftsHits = storage.search('方案A', { limit: 20 });
     expect(ftsHits.map(h => h.id)).not.toContain('old_2');
+    // Round 2: markSuperseded 后 content_sha256 按 (content, archived, false) 重算，
+    // getBySha256 用新 sha 命中 —— 维持 CascadeSync 不变量
+    const oldContent = storage.getContentById('old_2')!;
+    const newSha = computeSha256(oldContent, 'archived', false);
+    expect(storage.getBySha256(newSha)!.id).toBe('old_2');
+    expect(storage.getById('old_2')!.content_sha256).toBe(newSha);
   });
 
   it('hallucinated target in update decision is skipped (not removed/superseded)', async () => {

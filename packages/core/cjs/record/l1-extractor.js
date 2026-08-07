@@ -79,7 +79,8 @@ async function extractL1Memories(params) {
       scene_name: mem.scene_name,
       source_message_ids: mem.source_message_ids,
       created_at: (/* @__PURE__ */ new Date()).toISOString(),
-      version: 1
+      version: 1,
+      metadata: mem.metadata ?? {}
     };
     try {
       (0, import_l1_writer.appendL1Record)(record, baseDir);

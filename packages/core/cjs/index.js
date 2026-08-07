@@ -29,11 +29,15 @@ __export(src_exports, {
   MIGRATION_SQL: () => import_models.MIGRATION_SQL,
   MarkdownHandler: () => import_markdown.MarkdownHandler,
   MemoryStorage: () => import_storage.MemoryStorage,
+  PersonaGenerator: () => import_persona_generator.PersonaGenerator,
   SCHEMA_SQL: () => import_models.SCHEMA_SQL,
+  SceneExtractor: () => import_scene_extractor.SceneExtractor,
   VectorStore: () => import_vector.VectorStore,
   appendL1Record: () => import_l1_writer.appendL1Record,
   applyDecisions: () => import_l1_dedup.applyDecisions,
   batchDedup: () => import_l1_dedup.batchDedup,
+  buildPersonaSystemPrompt: () => import_persona_generation.buildPersonaSystemPrompt,
+  buildSceneSystemPrompt: () => import_scene_extraction.buildSceneSystemPrompt,
   classifyMemory: () => import_classifier.classifyMemory,
   computeSha256: () => import_storage.computeSha256,
   extractL1Memories: () => import_l1_extractor.extractL1Memories,
@@ -43,10 +47,14 @@ __export(src_exports, {
   groupFilePath: () => import_markdown.groupFilePath,
   loadConfig: () => import_config.loadConfig,
   mdPathForEntry: () => import_markdown.mdPathForEntry,
+  parseSceneFile: () => import_scene_file.parseSceneFile,
   readConversationMessages: () => import_l0_recorder.readConversationMessages,
   readL1Records: () => import_l1_writer.readL1Records,
   recordConversation: () => import_l0_recorder.recordConversation,
-  saveConfig: () => import_config.saveConfig
+  sanitizeSceneName: () => import_scene_file.sanitizeSceneName,
+  saveConfig: () => import_config.saveConfig,
+  serializeSceneFile: () => import_scene_file.serializeSceneFile,
+  syncSceneIndex: () => import_scene_file.syncSceneIndex
 });
 module.exports = __toCommonJS(src_exports);
 var import_models = require("./models.js");
@@ -63,6 +71,11 @@ var import_dual_writer = require("./record/dual-writer.js");
 var import_llm = require("./llm.js");
 var import_l1_extractor = require("./record/l1-extractor.js");
 var import_l1_extraction = require("./prompts/l1-extraction.js");
+var import_scene_file = require("./scene/scene-file.js");
+var import_scene_extractor = require("./scene/scene-extractor.js");
+var import_scene_extraction = require("./prompts/scene-extraction.js");
+var import_persona_generator = require("./persona/persona-generator.js");
+var import_persona_generation = require("./prompts/persona-generation.js");
 var import_l1_dedup = require("./record/l1-dedup.js");
 var import_l1_dedup2 = require("./prompts/l1-dedup.js");
 // Annotate the CommonJS export names for ESM import in node:
@@ -77,11 +90,15 @@ var import_l1_dedup2 = require("./prompts/l1-dedup.js");
   MIGRATION_SQL,
   MarkdownHandler,
   MemoryStorage,
+  PersonaGenerator,
   SCHEMA_SQL,
+  SceneExtractor,
   VectorStore,
   appendL1Record,
   applyDecisions,
   batchDedup,
+  buildPersonaSystemPrompt,
+  buildSceneSystemPrompt,
   classifyMemory,
   computeSha256,
   extractL1Memories,
@@ -91,8 +108,12 @@ var import_l1_dedup2 = require("./prompts/l1-dedup.js");
   groupFilePath,
   loadConfig,
   mdPathForEntry,
+  parseSceneFile,
   readConversationMessages,
   readL1Records,
   recordConversation,
-  saveConfig
+  sanitizeSceneName,
+  saveConfig,
+  serializeSceneFile,
+  syncSceneIndex
 });

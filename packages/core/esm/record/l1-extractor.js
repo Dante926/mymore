@@ -41,7 +41,7 @@ export function extractL1Memories(_x) {
 // ============================
 function _extractL1Memories() {
   _extractL1Memories = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(params) {
-    var messages, llm, baseDir, sessionKey, _params$maxMessagesPe, maxMessagesPerExtraction, _params$maxBackground, maxBackgroundMessages, _params$maxMemoriesPe, maxMemoriesPerSession, previousSceneName, newMessages, bgEndIdx, backgroundMessages, scenes, sceneNames, extracted, _iterator2, _step2, scene, _iterator3, _step3, _mem, memType, records, _i, _extracted, mem, record;
+    var messages, llm, baseDir, sessionKey, _params$maxMessagesPe, maxMessagesPerExtraction, _params$maxBackground, maxBackgroundMessages, _params$maxMemoriesPe, maxMemoriesPerSession, previousSceneName, newMessages, bgEndIdx, backgroundMessages, scenes, sceneNames, extracted, _iterator2, _step2, scene, _iterator3, _step3, _mem, memType, records, _i, _extracted, _mem$metadata, mem, record;
     return _regeneratorRuntime().wrap(function _callee$(_context) {
       while (1) switch (_context.prev = _context.next) {
         case 0:
@@ -169,7 +169,8 @@ function _extractL1Memories() {
               scene_name: mem.scene_name,
               source_message_ids: mem.source_message_ids,
               created_at: new Date().toISOString(),
-              version: 1
+              version: 1,
+              metadata: (_mem$metadata = mem.metadata) !== null && _mem$metadata !== void 0 ? _mem$metadata : {}
             };
             try {
               appendL1Record(record, baseDir);

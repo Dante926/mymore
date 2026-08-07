@@ -457,8 +457,10 @@ function repairDedupJson(json: string): string {
  * 按决策落库：
  * - skip → 不落任何东西
  * - store → DualWriter.storeL1({...memory, version: memory.version})
- * - update/merge → 先 vector.remove(target) 每个 target_id，再
- *   DualWriter.storeL1(merged_content/type，version = 新记忆与各 target 的最大 version + 1)
+ * - update/merge → 先校验 target_ids（存在 + 同租户 + 非自身，防 LLM 幻觉），落新记录
+ *   （merged_content/type，version = 新记忆与各合法 target 的最大 version + 1），再对每个合法
+ *   target 调 storage.markSuperseded(target, 新记忆 id) + vector.remove(target)。
+ *   顺序：先 storeL1 成功，后动目标 —— storeL1 失败时目标不被误删/误归档。
  *
  * @returns 实际落库（或跳过）后的最终 L1Record 列表。
  */
@@ -494,20 +496,17 @@ export async function applyDecisions(params: ApplyDecisionsParams): Promise<L1Re
     }
 
     // update / merge
-    // 1. 移除旧候选向量（每个 target_id）
-    for (const targetId of decision.target_ids ?? []) {
-      vector.remove(targetId);
-    }
+    // 1. 校验 target_ids：存在 + 同租户 + 非自身（防 LLM 幻觉），不满足的直接跳过
+    const validTargets = validateTargets(memory, decision.target_ids ?? [], storage, team, agent);
 
-    // 2. 新记录形状：merged_content/type，version = max(新记忆, 各 target) + 1
+    // 2. 新记录形状：merged_content/type，version = max(新记忆, 各合法 target) + 1
     const content = decision.merged_content ?? memory.content;
     const type = normalizeMergedType(decision.merged_type) ?? memory.type;
     const mergedPriority = decision.merged_priority;
 
     let maxVersion = memory.version;
-    for (const targetId of decision.target_ids ?? []) {
-      const target = storage.getById(targetId);
-      if (target && typeof target.version === 'number' && target.version > maxVersion) {
+    for (const target of validTargets) {
+      if (typeof target.version === 'number' && target.version > maxVersion) {
         maxVersion = target.version;
       }
     }
@@ -522,12 +521,50 @@ export async function applyDecisions(params: ApplyDecisionsParams): Promise<L1Re
       version: newVersion,
     };
 
-    const stored = await writer.storeL1(mergedRecord);
+    // 3. 先落新记录（成功后才动目标：storeL1 失败时目标保持原状，可安全重试）
+    await writer.storeL1(mergedRecord);
+
+    // 4. 对每个合法 target：标记被新记忆替代（FTS 不再召回）+ 移除旧向量
+    for (const target of validTargets) {
+      storage.markSuperseded(target.id, memory.id);
+      vector.remove(target.id);
+    }
+
     written.push(mergedRecord);
-    void stored;
   }
 
   return written;
+}
+
+/**
+ * 校验 update/merge 的 target_ids（防 LLM 幻觉）：
+ * - 必须存在于 storage（getById 非空）
+ * - 必须与当前 memory 同租户（team/agent 严格匹配，绝不跨租户）
+ * - 不能是当前 memory 自身（自引用）
+ * 不满足的 target 直接跳过：不 remove、不纳入 version 计算、不 markSuperseded。
+ */
+function validateTargets(
+  memory: L1Record & { record_id: string },
+  targetIds: string[],
+  storage: MemoryStorage,
+  team?: string,
+  agent?: string,
+): Array<{ id: string; version: number | null }> {
+  const effectiveTeam = memory.team ?? team;
+  const effectiveAgent = memory.agent ?? agent;
+  const valid: Array<{ id: string; version: number | null }> = [];
+
+  for (const targetId of targetIds) {
+    if (!targetId || targetId === memory.id) continue; // 空或自引用 → 跳过
+    const row = storage.getById(targetId);
+    if (!row) continue; // 不存在 → LLM 幻觉，跳过
+    // 同租户校验：team/agent 严格相等（null 与 undefined 视为相同）
+    if ((row.team ?? undefined) !== (effectiveTeam ?? undefined)) continue;
+    if ((row.agent ?? undefined) !== (effectiveAgent ?? undefined)) continue;
+    valid.push({ id: row.id, version: row.version });
+  }
+
+  return valid;
 }
 
 // ============================

@@ -90,6 +90,57 @@ describe('L1 dedup', () => {
     expect(hitsA.map(h => h.record_id)).toContain('r5');
     // old_2 不再有任何向量
     expect(vector.search(new Float32Array([0,1,0]), 10).map(h => h.record_id)).not.toContain('old_2');
+    // Important #2: target 被 markSuperseded —— 不再被 FTS 召回（superseded_by 指向新记忆 r5）
+    const oldRow = storage.getById('old_2');
+    expect(oldRow!.superseded_by).toBe('r5');
+    expect(oldRow!.category).toBe('archived');
+    // storage.search 默认排除 superseded 行（superseded_by IS NULL 条件），旧目标不再浮现
+    const ftsHits = storage.search('方案A', { limit: 20 });
+    expect(ftsHits.map(h => h.id)).not.toContain('old_2');
+  });
+
+  it('hallucinated target in update decision is skipped (not removed/superseded)', async () => {
+    const w = new DualWriter({ storage, vector, embed: fakeEmbed, baseDir: dir });
+    await w.storeL1({ ...rec('real_target', '方案A'), version: 1 });
+    // LLM 幻觉一个不存在的 target + 一个跨租户的 target
+    const llm = fakeLlm(JSON.stringify([
+      { record_id: 'r7', action: 'update', target_ids: ['ghost_123', 'real_target'], merged_content: '方案A 更具体的更新', merged_type: 'episodic', merged_priority: 85 },
+    ]));
+    const decisions = await batchDedup({
+      memories: [rec('r7', '方案A 更具体的更新')], llm, vector, embed: fakeEmbed, storage,
+    });
+    expect(decisions[0].action).toBe('update');
+    await applyDecisions({ memories: [rec('r7', '方案A 更具体的更新')], decisions, storage, vector, embed: fakeEmbed, baseDir: dir });
+    // 新记录落库，version = max(1, real_target 的 1) + 1 = 2（ghost 未纳入计算）
+    const row = storage.getById('r7');
+    expect(row!.version).toBe(2);
+    // ghost_123 从未存在，未被 remove/supersede（无法直接断言 remove，但 getById 保持 null）
+    expect(storage.getById('ghost_123')).toBeNull();
+    // real_target 是合法 target：被 superseded + 向量移除
+    expect(storage.getById('real_target')!.superseded_by).toBe('r7');
+    expect(vector.search(new Float32Array([1,0,0]), 10).map(h => h.record_id)).not.toContain('real_target');
+  });
+
+  it('update decision does not supersede targets from another tenant', async () => {
+    const w = new DualWriter({ storage, vector, embed: fakeEmbed, baseDir: dir });
+    // 先写一条 teamA 的记录（meta 带 team）
+    await w.storeL1({ ...rec('teamA_rec', '方案A'), version: 1, team: 'teamA', agent: 'agentA' });
+    // 新记忆无 team（null 租户），LLM 却把 teamA 的记录列为 target —— 应被租户校验拒绝
+    const llm = fakeLlm(JSON.stringify([
+      { record_id: 'r8', action: 'merge', target_ids: ['teamA_rec'], merged_content: '合并', merged_type: 'episodic', merged_priority: 80 },
+    ]));
+    const decisions = await batchDedup({
+      memories: [rec('r8', '合并')], llm, vector, embed: fakeEmbed, storage,
+    });
+    expect(decisions[0].action).toBe('merge');
+    await applyDecisions({ memories: [rec('r8', '合并')], decisions, storage, vector, embed: fakeEmbed, baseDir: dir });
+    // teamA_rec 未被 superseded、向量未删（跨租户目标被跳过）
+    expect(storage.getById('teamA_rec')!.superseded_by).toBeNull();
+    expect(storage.getById('teamA_rec')!.category).toBe('persistent');
+    expect(vector.search(new Float32Array([1,0,0]), 10).map(h => h.record_id)).toContain('teamA_rec');
+    // r8 落库（merge 决策仍落新记录），version 只基于自身 version 1 → 2
+    expect(storage.getById('r8')).not.toBeNull();
+    expect(storage.getById('r8')!.version).toBe(2);
   });
 
   it('fenced + noisy llm output parses to decisions', async () => {

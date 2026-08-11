@@ -87,6 +87,8 @@ function syncSceneIndex(scenesDir) {
   const entries = [];
   for (const f of files) {
     const raw = (0, import_fs.readFileSync)((0, import_path.join)(scanDir, f), "utf8");
+    if (raw.trim() === "[DELETED]")
+      continue;
     const scene = parseSceneFile(raw);
     if (!scene)
       continue;

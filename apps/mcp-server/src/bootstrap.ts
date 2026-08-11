@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { homedir } from 'os';
 import { join, dirname } from 'path';
-import { mkdirSync, readFileSync, existsSync, readdirSync } from 'fs';
+import { mkdirSync, readFileSync, existsSync, readdirSync, writeFileSync, renameSync } from 'fs';
 import { MemoryStorage, CascadeSync, MarkdownHandler, Consolidator, classifyMemory, LLMRunner, EmbeddingClient, VectorStore, loadConfig, SceneExtractor, PersonaGenerator, readL1Records, syncSceneIndex, parseSceneFile, serializeSceneFile } from '@mymore/core';
 import type { MyMoreConfig, L1Record, SceneFile, SceneIndexEntry } from '@mymore/core';
 import { v4 as uuid } from 'uuid';
@@ -148,14 +148,73 @@ const personaPath = join(rootDir, 'persona.md');
 const sceneExtractor = new SceneExtractor({ llm, scenesDir: rootDir, team: undefined, agent: undefined });
 const personaGenerator = new PersonaGenerator({ llm, personaPath, dataDir: rootDir, team: undefined, agent: undefined });
 
-// L1 → L2 增量游标：每次 L2 跑完后推进，避免重复消费同一批 L1 记忆。
-let lastL2Version = 0;
-// L3 P4 阈值游标：自上次 persona 生成以来新增的 L1 记忆数 >= triggerEveryN 才触发。
-let lastPersonaVersion = 0;
+// L1 → L2 增量游标 + L3 P4 阈值基准（final review C1 修复）：
+// 原实现用 version 游标（readL1Records afterVersion），但 L1 新记忆默认 version:1，
+// store 动作保持 version:1 —— 游标一旦越过 1，后续 version<=游标 的新记录全被过滤，
+// L2 饿死 + P4 死触发。改为「id 去重」双保险，两个**独立** id 集合：
+//   - l2ProcessedIds：L2 已消费的记录 id（防 L2 重复消费同一批）；
+//   - lastPersonaSeenIds：上次 persona 生成时已纳入的记录 id（P4 阈值计数基准，
+//     与 L2 无关 —— L2 消费记录不清零 persona 计数）。
+// 均读全部 L1（不依赖 version/created_at 单调性），持久化到 ~/.mymore/.index/
+// （mcp-server 重启后恢复，增量不丢；缺失/损坏 → 空集安全重扫）。
+let l2ProcessedIds = new Set<string>();
+let lastPersonaSeenIds = new Set<string>();
 
-/** 读取本次 L2/L3 的 L1 增量（afterVersion 游标）。 */
+/** 状态文件路径（.index/<name>）。 */
+function stateFilePath(name: string): string {
+  return join(rootDir, '.index', name);
+}
+
+/** 加载一个 id 集合状态文件（缺失/损坏 → 空集，宁可重扫也不漏增量）。 */
+function loadIdSet(name: string): Set<string> {
+  try {
+    const raw = JSON.parse(readFileSync(stateFilePath(name), 'utf8')) as unknown;
+    if (Array.isArray(raw)) return new Set(raw.filter((x) => typeof x === 'string'));
+  } catch {
+    // 缺失/损坏 → 空集
+  }
+  return new Set<string>();
+}
+
+/** 持久化一个 id 集合（原子：先写临时文件再 rename）。 */
+function persistIdSet(name: string, ids: Set<string>): void {
+  try {
+    const tmp = `${stateFilePath(name)}.tmp`;
+    writeFileSync(tmp, JSON.stringify([...ids]), 'utf8');
+    renameSync(tmp, stateFilePath(name));
+  } catch (err) {
+    console.error(`[pipeline] 持久化 ${name} 失败（不影响本次，下次重扫）: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * 读取本次 L2 的 L1 增量（final review C1 修复）：
+ * 读全部 L1（无 afterVersion）→ 过滤已处理 id → 返回未消费的增量记录。
+ * 无论 version/created_at 如何，新 id 的记录都能被消费（修复 L2 饿死）。
+ */
 function readL2Increment(): L1Record[] {
-  return readL1Records(rootDir, { afterVersion: lastL2Version });
+  const all = readL1Records(rootDir);
+  return all.filter((r) => !l2ProcessedIds.has(r.id));
+}
+
+// 启动时恢复两个 id 集合（文件缺失/损坏 → 空集，安全重扫）
+l2ProcessedIds = loadIdSet('l2-processed.json');
+lastPersonaSeenIds = loadIdSet('l3-persona-seen.json');
+if (l2ProcessedIds.size > 0) {
+  console.error(`[pipeline] 恢复 L2 已处理 id 游标：${l2ProcessedIds.size} 条`);
+}
+if (lastPersonaSeenIds.size > 0) {
+  console.error(`[pipeline] 恢复 persona 已纳入 id 基准：${lastPersonaSeenIds.size} 条`);
+}
+
+/**
+ * 判定场景文件是否为 [DELETED] 软删除标记（final review I2 修复）：
+ * L2 merge 动作把被合并的旧场景覆写为 '[DELETED]'（scene-extractor.ts softDelete），
+ * 这类文件不应进入 readExistingScenes / scene_index.json / L3 changedScenes。
+ * 宽容匹配：body 整体为 [DELETED]（可带首尾空白）即视为已删除。
+ */
+function isDeletedScene(raw: string): boolean {
+  return raw.trim() === '[DELETED]';
 }
 
 /** 读取既有场景文件（scene_blocks/*.md）与索引快照（scene_index.json）。 */
@@ -170,6 +229,8 @@ function readExistingScenes(): { scenes: SceneFile[]; index: SceneIndexEntry[] }
   for (const f of files) {
     try {
       const raw = readFileSync(join(scenesRoot, f), 'utf8');
+      // I2 修复：跳过 [DELETED] 软删除文件，不让它们污染 L2 输入 / L3 触发 / 索引
+      if (isDeletedScene(raw)) continue;
       const scene = parseSceneFile(raw);
       if (scene) scenes.push({ ...scene, path: f });
     } catch {
@@ -190,6 +251,10 @@ function readExistingScenes(): { scenes: SceneFile[]; index: SceneIndexEntry[] }
  * 跑 L2：读 L1 增量 + 既有场景 → SceneExtractor.extractL2 → 推进游标 + 重建索引。
  * extractL2 解析失败会 throw（参考 §4.2），此处 try/catch 降级：失败不落任何文件、
  * 不推进游标（下次可重试），返回空上下文（不触发 L3 的 P1/P3）。
+ *
+ * 游标（final review C1 修复）：L2 跑完后把本次消费的 L1 记录 id 持久化到
+ * ~/.mymore/.index/l2-processed.json —— 不依赖 version（新记忆几乎都是 version:1），
+ * 重启后从文件恢复，增量不丢。
  */
 async function runL2Extraction(): Promise<{ personaUpdateRequested?: boolean; firstScene?: boolean }> {
   try {
@@ -201,9 +266,10 @@ async function runL2Extraction(): Promise<{ personaUpdateRequested?: boolean; fi
       existingScenes: scenes,
       lastSceneIndex: index,
     });
-    // 推进 L2 游标到本次读取的最新 version（readL1Records 已按 created_at 降序，取 max）
-    const maxVersion = newRecords.reduce((max, r) => (r.version > max ? r.version : max), 0);
-    if (maxVersion > lastL2Version) lastL2Version = maxVersion;
+    // 推进 L2 游标：把本次消费的记录 id 并入已处理集合并持久化（新 id 下次不再重复消费）。
+    // 注意：只推进 l2ProcessedIds —— 不影响 lastPersonaSeenIds（P4 阈值独立计数）。
+    for (const r of newRecords) l2ProcessedIds.add(r.id);
+    if (newRecords.length > 0) persistIdSet('l2-processed.json', l2ProcessedIds);
     // L2 动作后工程侧重建 scene_index.json（SceneExtractor 内部已调 syncSceneIndex(rootDir)）
     try { syncSceneIndex(rootDir); } catch { /* 索引重建失败不致命 */ }
     console.error(
@@ -225,8 +291,9 @@ async function runL2Extraction(): Promise<{ personaUpdateRequested?: boolean; fi
 async function runL3Generation(personaUpdateRequested: boolean, firstScene: boolean): Promise<void> {
   const { scenes } = readExistingScenes();
   const personaExists = existsSync(personaPath);
-  // P4 阈值：自上次 persona 以来新增的 L1 记忆数（lastPersonaVersion 游标）。
-  const memoriesSinceLastPersona = readL1Records(rootDir, { afterVersion: lastPersonaVersion }).length;
+  // P4 阈值（final review C1 修复）：自上次 persona 以来新增的 L1 记忆数
+  // （不在 lastPersonaSeenIds 的记录数 —— 独立于 L2 游标，L2 消费不清零计数）。
+  const memoriesSinceLastPersona = readL1Records(rootDir).filter((r) => !lastPersonaSeenIds.has(r.id)).length;
 
   const should = PersonaTrigger.shouldGenerate({
     requestPersonaUpdate: personaUpdateRequested,
@@ -248,9 +315,12 @@ async function runL3Generation(personaUpdateRequested: boolean, firstScene: bool
 
   try {
     const res = await personaGenerator.generatePersona({ mode, existingPersona, changedScenes });
-    // 生成成功后推进 P4 游标到当前最新 L1 version（persona 已纳入这些记忆）。
-    const latest = readL1Records(rootDir, { limit: 1 })[0];
-    if (latest && latest.version > lastPersonaVersion) lastPersonaVersion = latest.version;
+    if (res.success) {
+      // 生成成功后把这些 L1 记录 id 计入 persona 已纳入集合并持久化
+      // （persona 已纳入这些记忆，下一轮 P4 从这些之外重新计数）。
+      for (const r of readL1Records(rootDir)) lastPersonaSeenIds.add(r.id);
+      persistIdSet('l3-persona-seen.json', lastPersonaSeenIds);
+    }
     console.error(`[pipeline] L3 done: mode=${mode} success=${res.success} path=${res.personaPath}`);
   } catch (err) {
     console.error(`[pipeline] L3 failed: ${err instanceof Error ? err.message : String(err)}`);

@@ -75,6 +75,8 @@ export function syncSceneIndex(scenesDir) {
     for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
       var f = _step2.value;
       var raw = readFileSync(join(scanDir, f), 'utf8');
+      // [DELETED] 软删除标记的文件（L2 merge 动作写入）不进入索引
+      if (raw.trim() === '[DELETED]') continue;
       var scene = parseSceneFile(raw);
       if (!scene) continue;
       entries.push({

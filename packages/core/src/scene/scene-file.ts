@@ -84,6 +84,8 @@ export function syncSceneIndex(scenesDir: string): SceneIndexEntry[] {
   const entries: SceneIndexEntry[] = [];
   for (const f of files) {
     const raw = readFileSync(join(scanDir, f), 'utf8');
+    // [DELETED] 软删除标记的文件（L2 merge 动作写入）不进入索引
+    if (raw.trim() === '[DELETED]') continue;
     const scene = parseSceneFile(raw);
     if (!scene) continue;
     entries.push({ path: f, summary: scene.meta.summary, heat: scene.meta.heat, updated: scene.meta.updated });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { parseSceneFile, serializeSceneFile, sanitizeSceneName, syncSceneIndex } from '../src/scene/scene-file.js';
@@ -33,5 +33,25 @@ describe('scene-file', () => {
     // scene_index.json written
     expect(existsSync(join(dir, 'scene_index.json'))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('syncSceneIndex skips [DELETED] soft-deleted scene files (I2)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'scene-del-'));
+    try {
+      // 正常场景 + [DELETED] 软删除文件（L2 merge 动作覆写）
+      writeFileSync(join(dir, 'alive.md'), `-----META-START-----\ncreated: 2026-08-01\nupdated: 2026-08-05\nsummary: x\nheat: 2\n-----META-END-----\n# alive`);
+      writeFileSync(join(dir, 'merged-away.md'), '[DELETED]');
+      // 带首尾空白也视为已删除
+      writeFileSync(join(dir, 'merged-away2.md'), '\n  [DELETED]  \n');
+
+      const idx = syncSceneIndex(dir);
+      expect(idx).toHaveLength(1);
+      expect(idx[0].path).toBe('alive.md');
+      // 索引文件同样不包含已删除场景
+      const written = JSON.parse(readFileSync(join(dir, 'scene_index.json'), 'utf8')) as Array<{ path: string }>;
+      expect(written.map((e) => e.path)).toEqual(['alive.md']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
